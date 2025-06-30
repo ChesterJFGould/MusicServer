@@ -1,0 +1,11 @@
+{ "songs":
+  [ { "hash": "cc5f5e2f11e7d4af5914e2783372152b1402989492dfeb6eede2a2da202a723a"
+    , "title": "Passacaglia in D minor"
+    , "file": "music/BuxWV161.mp3"
+    },
+    { "hash": "bfa8581dd42ef04af1b456f71177ab3b8bb804251642137343ce0734c8db9c5f"
+    , "title": "Sol Wave vol. 25"
+    , "file": "music/SolWave25.mp3"
+    }
+  ]
+}
