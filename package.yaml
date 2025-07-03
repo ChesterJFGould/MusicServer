@@ -21,15 +21,19 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
+- containers
 - http-types
 - text
 - warp
 - wai
+- bytestring
 
 language: GHC2021
 
 default-extensions:
 - OverloadedStrings
+- DuplicateRecordFields
+- OverloadedRecordDot
 
 ghc-options:
 - -Wall

@@ -25,7 +25,10 @@ source-repository head
 
 library
   exposed-modules:
+      Ewe
       Lib
+      QStore
+      Sexpr
   other-modules:
       Paths_MusicServer
   autogen-modules:
@@ -34,9 +37,13 @@ library
       src
   default-extensions:
       OverloadedStrings
+      DuplicateRecordFields
+      OverloadedRecordDot
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       base >=4.7 && <5
+    , bytestring
+    , containers
     , http-types
     , text
     , wai
@@ -53,10 +60,14 @@ executable MusicServer-exe
       app
   default-extensions:
       OverloadedStrings
+      DuplicateRecordFields
+      OverloadedRecordDot
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       MusicServer
     , base >=4.7 && <5
+    , bytestring
+    , containers
     , http-types
     , text
     , wai
@@ -74,10 +85,14 @@ test-suite MusicServer-test
       test
   default-extensions:
       OverloadedStrings
+      DuplicateRecordFields
+      OverloadedRecordDot
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       MusicServer
     , base >=4.7 && <5
+    , bytestring
+    , containers
     , http-types
     , text
     , wai

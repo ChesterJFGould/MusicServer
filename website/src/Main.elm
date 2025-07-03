@@ -14,9 +14,11 @@ import Html.Styled exposing (Html)
 import Html.Styled.Attributes as Attr
 import Http
 import Json.Decode as D
+import Parser as P
+import Parser exposing (Parser)
 
 domain : String
-domain = ""
+domain = "localhost:3141/"
 
 main =
   Browser.element { init = init, update = update, subscriptions = subscriptions, view = view >> Html.toUnstyled }
@@ -103,3 +105,40 @@ viewSong song =
 
 subscriptions : Model -> Sub Msg
 subscriptions model = Sub.none
+
+type Sexpr
+  = List (List Sexpr)
+  | Symbol String
+  | String String
+  | Bool Bool
+  | Int Int
+
+isSymbol : Char -> Bool
+isSymbol c = member c (Set.fromList [' ', '\n', '\r', '(', ')', '"'])
+
+stringP : Parser String
+stringP = _
+  -- succeed String
+  --   |. P.symbol '"'
+  --   |= P.loop
+  --        ""
+  --        (\s -> _
+
+sexprP : Parser Sexpr
+sexprP =
+  P.oneOf
+    [ P.map List <| P.sequence
+        { start = "("
+        , separator = ""
+        , end = ")"
+        , spaces = P.spaces
+        , item = P.lazy (\_ -> sexprP)
+        , trailing = P.Forbidden
+        }
+    , P.map Int P.int
+    , P.map Symbol <| P.variable
+        { start = isSymbol
+        , inner = isSymbol
+        , reserved = Set.fromList [ "#t", "#f" ]
+        }
+    ]
