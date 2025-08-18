@@ -1,144 +1,71 @@
 module Main exposing (..)
 
--- Press buttons to increment and decrement a counter.
---
--- Read how it works:
---   https://guide.elm-lang.org/architecture/buttons.html
---
-
-
+import Album
+import Album.Albums as Albums
+import Album.Songs
+import App.Loading as Loading
+import App exposing ( App )
+import App.Flex
+import App.Switch
+import App.Product
+import Audio
 import Browser
+import Debug
 import Css as Css
+import Dict
+import Equiv exposing (Equiv)
 import Html.Styled as Html
 import Html.Styled exposing (Html)
 import Html.Styled.Attributes as Attr
+import Html.Styled.Events as Events
 import Http
 import Json.Decode as D
-import Parser as P
-import Parser exposing (Parser)
+import QStore
+import QStore exposing (Value(..), QVal(..), QueryQ, Query)
+import QStore.Query as Query
+import Sexpr
+-- import Types exposing (..)
+import Views.Albums
+import Msg
+import Msg exposing (Msg, Model)
 
 domain : String
-domain = "localhost:3141/"
+domain = ""
 
-main =
-  Browser.element { init = init, update = update, subscriptions = subscriptions, view = view >> Html.toUnstyled }
-
-type Hash = Hash String
-
-type alias Song = { hash : Hash, name : String, file : String }
-
-songDecoder : D.Decoder Song
-songDecoder =
-  D.map3 (\hash name file -> { hash = hash, name = name, file = file })
-    (D.field "hash" (D.map Hash D.string))
-    (D.field "title" D.string)
-    (D.field "file" D.string)
-
-songIndexDecoder : D.Decoder (List Song)
-songIndexDecoder = D.field "songs" (D.list songDecoder)
-
-type alias Model = { songs : List Song, currentSong : Maybe Hash }
+type Model
+  = Model (App.Switch.Model (Loading.Model Albums.Model Msg Albums.Msg) Album.Songs.Model Msg (Loading.Msg Albums.Model Msg Albums.Msg) Album.Songs.Msg)
 
 type Msg
-  = GotIndex (Result Http.Error (List Song))
+  = Msg (App.Switch.Msg () Album.Album (Loading.Msg Albums.Model Msg Albums.Msg) Album.Songs.Msg)
 
-init : () -> (Model, Cmd Msg)
-init () =
-  ({ songs = [], currentSong = Nothing }
-  , Http.get { url= String.append domain "index.json", expect = Http.expectJson GotIndex songIndexDecoder })
+msgEquiv : Equiv Msg (App.Switch.Msg () Album.Album (Loading.Msg Albums.Model Msg Albums.Msg) Album.Songs.Msg)
+msgEquiv = { to = \(Msg m) -> m, from = Msg }
 
-update : Msg -> Model -> (Model, Cmd Msg)
-update msg model =
-  case msg of
-    GotIndex (Ok songs) -> (songs, Cmd.none)
-    GotIndex (Err _) -> (model, Cmd.none)
+modelEquiv : Equiv (App.Switch.Model (Loading.Model Albums.Model Msg Albums.Msg) Album.Songs.Model Msg (Loading.Msg Albums.Model Msg Albums.Msg) Album.Songs.Msg) Model
+modelEquiv = { to = Model, from = \(Model m) -> m }
 
-view : Model -> Html Msg
-view model = viewSongList model
+mainApp : App Model msgE Msg
+mainApp =
+  App.Switch.app
+    ( \() ->
+        Loading.app
+          ( Query.query "http://localhost:2718/database/query" Album.query
+              |> Cmd.map (\res ->
+                   case res of
+                     Ok albums -> Albums.app (Msg << App.Switch.switchToB) albums
+                     Err _ -> Albums.app (Msg << App.Switch.switchToB) []
+                 )
+          )
+    )
+    Album.Songs.app
+    (App.Switch.StartA ())
+    |> App.equiv modelEquiv Equiv.refl (Equiv.symm msgEquiv)
+    |> App.handle
 
-viewSongList : List Song -> Html Msg
-viewSongList songs =
-  Html.styled Html.div
-    [ Css.displayFlex
-    , Css.flexDirection Css.column
-    , Css.height (Css.vh 100)
-    ]
-    []
-    [ Html.div
-        [ Attr.css
-            [ Css.displayFlex
-            , Css.flexDirection Css.row
-            , Css.justifyContent Css.center
-            , Css.height Css.auto
-            , Css.flexGrow (Css.num 1)
-            ]
-        ]
-        [ Html.div
-            [ Attr.css
-                [ Css.displayFlex
-                , Css.flexDirection Css.column
-                , Css.width (Css.pct 50)
-                ]
-            ]
-            (List.map viewSong songs)
-        ]
-    , Html.styled Html.div
-        [ Css.border3 (Css.px 2) Css.solid (Css.rgb 0 0 0)
-        , Css.displayFlex
-        , Css.justifyContent Css.center
-        , Css.flexShrink (Css.num 1)
-        ]
-        []
-        [ Html.text "I am a music control bar ⏸︎" ]
-    ]
+app =
+  App.Product.app
+    (App.Product.app App.Flex.filler mainApp)
+    App.Flex.filler
+    |> App.Flex.row
 
-viewSong : Song -> Html Msg
-viewSong song =
-  Html.styled Html.div
-    [ Css.border3 (Css.px 2) Css.solid (Css.rgb 0 0 0)
-    , Css.width (Css.pct 100)
-    , Css.displayFlex
-    , Css.justifyContent Css.center
-    ]
-    []
-    [ Html.text song.name ]
-
-subscriptions : Model -> Sub Msg
-subscriptions model = Sub.none
-
-type Sexpr
-  = List (List Sexpr)
-  | Symbol String
-  | String String
-  | Bool Bool
-  | Int Int
-
-isSymbol : Char -> Bool
-isSymbol c = member c (Set.fromList [' ', '\n', '\r', '(', ')', '"'])
-
-stringP : Parser String
-stringP = _
-  -- succeed String
-  --   |. P.symbol '"'
-  --   |= P.loop
-  --        ""
-  --        (\s -> _
-
-sexprP : Parser Sexpr
-sexprP =
-  P.oneOf
-    [ P.map List <| P.sequence
-        { start = "("
-        , separator = ""
-        , end = ")"
-        , spaces = P.spaces
-        , item = P.lazy (\_ -> sexprP)
-        , trailing = P.Forbidden
-        }
-    , P.map Int P.int
-    , P.map Symbol <| P.variable
-        { start = isSymbol
-        , inner = isSymbol
-        , reserved = Set.fromList [ "#t", "#f" ]
-        }
-    ]
+main = App.run "My Music" app
