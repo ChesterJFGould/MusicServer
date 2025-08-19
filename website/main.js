@@ -80,6 +80,271 @@ function A9(fun, a, b, c, d, e, f, g, h, i) {
 console.warn('Compiled in DEV mode. Follow the advice at https://elm-lang.org/0.19.1/optimize for better performance and smaller assets.');
 
 
+// EQUALITY
+
+function _Utils_eq(x, y)
+{
+	for (
+		var pair, stack = [], isEqual = _Utils_eqHelp(x, y, 0, stack);
+		isEqual && (pair = stack.pop());
+		isEqual = _Utils_eqHelp(pair.a, pair.b, 0, stack)
+		)
+	{}
+
+	return isEqual;
+}
+
+function _Utils_eqHelp(x, y, depth, stack)
+{
+	if (x === y)
+	{
+		return true;
+	}
+
+	if (typeof x !== 'object' || x === null || y === null)
+	{
+		typeof x === 'function' && _Debug_crash(5);
+		return false;
+	}
+
+	if (depth > 100)
+	{
+		stack.push(_Utils_Tuple2(x,y));
+		return true;
+	}
+
+	/**/
+	if (x.$ === 'Set_elm_builtin')
+	{
+		x = $elm$core$Set$toList(x);
+		y = $elm$core$Set$toList(y);
+	}
+	if (x.$ === 'RBNode_elm_builtin' || x.$ === 'RBEmpty_elm_builtin')
+	{
+		x = $elm$core$Dict$toList(x);
+		y = $elm$core$Dict$toList(y);
+	}
+	//*/
+
+	/**_UNUSED/
+	if (x.$ < 0)
+	{
+		x = $elm$core$Dict$toList(x);
+		y = $elm$core$Dict$toList(y);
+	}
+	//*/
+
+	for (var key in x)
+	{
+		if (!_Utils_eqHelp(x[key], y[key], depth + 1, stack))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+var _Utils_equal = F2(_Utils_eq);
+var _Utils_notEqual = F2(function(a, b) { return !_Utils_eq(a,b); });
+
+
+
+// COMPARISONS
+
+// Code in Generate/JavaScript.hs, Basics.js, and List.js depends on
+// the particular integer values assigned to LT, EQ, and GT.
+
+function _Utils_cmp(x, y, ord)
+{
+	if (typeof x !== 'object')
+	{
+		return x === y ? /*EQ*/ 0 : x < y ? /*LT*/ -1 : /*GT*/ 1;
+	}
+
+	/**/
+	if (x instanceof String)
+	{
+		var a = x.valueOf();
+		var b = y.valueOf();
+		return a === b ? 0 : a < b ? -1 : 1;
+	}
+	//*/
+
+	/**_UNUSED/
+	if (typeof x.$ === 'undefined')
+	//*/
+	/**/
+	if (x.$[0] === '#')
+	//*/
+	{
+		return (ord = _Utils_cmp(x.a, y.a))
+			? ord
+			: (ord = _Utils_cmp(x.b, y.b))
+				? ord
+				: _Utils_cmp(x.c, y.c);
+	}
+
+	// traverse conses until end of a list or a mismatch
+	for (; x.b && y.b && !(ord = _Utils_cmp(x.a, y.a)); x = x.b, y = y.b) {} // WHILE_CONSES
+	return ord || (x.b ? /*GT*/ 1 : y.b ? /*LT*/ -1 : /*EQ*/ 0);
+}
+
+var _Utils_lt = F2(function(a, b) { return _Utils_cmp(a, b) < 0; });
+var _Utils_le = F2(function(a, b) { return _Utils_cmp(a, b) < 1; });
+var _Utils_gt = F2(function(a, b) { return _Utils_cmp(a, b) > 0; });
+var _Utils_ge = F2(function(a, b) { return _Utils_cmp(a, b) >= 0; });
+
+var _Utils_compare = F2(function(x, y)
+{
+	var n = _Utils_cmp(x, y);
+	return n < 0 ? $elm$core$Basics$LT : n ? $elm$core$Basics$GT : $elm$core$Basics$EQ;
+});
+
+
+// COMMON VALUES
+
+var _Utils_Tuple0_UNUSED = 0;
+var _Utils_Tuple0 = { $: '#0' };
+
+function _Utils_Tuple2_UNUSED(a, b) { return { a: a, b: b }; }
+function _Utils_Tuple2(a, b) { return { $: '#2', a: a, b: b }; }
+
+function _Utils_Tuple3_UNUSED(a, b, c) { return { a: a, b: b, c: c }; }
+function _Utils_Tuple3(a, b, c) { return { $: '#3', a: a, b: b, c: c }; }
+
+function _Utils_chr_UNUSED(c) { return c; }
+function _Utils_chr(c) { return new String(c); }
+
+
+// RECORDS
+
+function _Utils_update(oldRecord, updatedFields)
+{
+	var newRecord = {};
+
+	for (var key in oldRecord)
+	{
+		newRecord[key] = oldRecord[key];
+	}
+
+	for (var key in updatedFields)
+	{
+		newRecord[key] = updatedFields[key];
+	}
+
+	return newRecord;
+}
+
+
+// APPEND
+
+var _Utils_append = F2(_Utils_ap);
+
+function _Utils_ap(xs, ys)
+{
+	// append Strings
+	if (typeof xs === 'string')
+	{
+		return xs + ys;
+	}
+
+	// append Lists
+	if (!xs.b)
+	{
+		return ys;
+	}
+	var root = _List_Cons(xs.a, ys);
+	xs = xs.b
+	for (var curr = root; xs.b; xs = xs.b) // WHILE_CONS
+	{
+		curr = curr.b = _List_Cons(xs.a, ys);
+	}
+	return root;
+}
+
+
+
+var _List_Nil_UNUSED = { $: 0 };
+var _List_Nil = { $: '[]' };
+
+function _List_Cons_UNUSED(hd, tl) { return { $: 1, a: hd, b: tl }; }
+function _List_Cons(hd, tl) { return { $: '::', a: hd, b: tl }; }
+
+
+var _List_cons = F2(_List_Cons);
+
+function _List_fromArray(arr)
+{
+	var out = _List_Nil;
+	for (var i = arr.length; i--; )
+	{
+		out = _List_Cons(arr[i], out);
+	}
+	return out;
+}
+
+function _List_toArray(xs)
+{
+	for (var out = []; xs.b; xs = xs.b) // WHILE_CONS
+	{
+		out.push(xs.a);
+	}
+	return out;
+}
+
+var _List_map2 = F3(function(f, xs, ys)
+{
+	for (var arr = []; xs.b && ys.b; xs = xs.b, ys = ys.b) // WHILE_CONSES
+	{
+		arr.push(A2(f, xs.a, ys.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_map3 = F4(function(f, xs, ys, zs)
+{
+	for (var arr = []; xs.b && ys.b && zs.b; xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
+	{
+		arr.push(A3(f, xs.a, ys.a, zs.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_map4 = F5(function(f, ws, xs, ys, zs)
+{
+	for (var arr = []; ws.b && xs.b && ys.b && zs.b; ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
+	{
+		arr.push(A4(f, ws.a, xs.a, ys.a, zs.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_map5 = F6(function(f, vs, ws, xs, ys, zs)
+{
+	for (var arr = []; vs.b && ws.b && xs.b && ys.b && zs.b; vs = vs.b, ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
+	{
+		arr.push(A5(f, vs.a, ws.a, xs.a, ys.a, zs.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_sortBy = F2(function(f, xs)
+{
+	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
+		return _Utils_cmp(f(a), f(b));
+	}));
+});
+
+var _List_sortWith = F2(function(f, xs)
+{
+	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
+		var ord = A2(f, a, b);
+		return ord === $elm$core$Basics$EQ ? 0 : ord === $elm$core$Basics$LT ? -1 : 1;
+	}));
+});
+
+
+
 var _JsArray_empty = [];
 
 function _JsArray_singleton(value)
@@ -525,271 +790,6 @@ function _Debug_regionToString(region)
 	}
 	return 'on lines ' + region.start.line + ' through ' + region.end.line;
 }
-
-
-
-// EQUALITY
-
-function _Utils_eq(x, y)
-{
-	for (
-		var pair, stack = [], isEqual = _Utils_eqHelp(x, y, 0, stack);
-		isEqual && (pair = stack.pop());
-		isEqual = _Utils_eqHelp(pair.a, pair.b, 0, stack)
-		)
-	{}
-
-	return isEqual;
-}
-
-function _Utils_eqHelp(x, y, depth, stack)
-{
-	if (x === y)
-	{
-		return true;
-	}
-
-	if (typeof x !== 'object' || x === null || y === null)
-	{
-		typeof x === 'function' && _Debug_crash(5);
-		return false;
-	}
-
-	if (depth > 100)
-	{
-		stack.push(_Utils_Tuple2(x,y));
-		return true;
-	}
-
-	/**/
-	if (x.$ === 'Set_elm_builtin')
-	{
-		x = $elm$core$Set$toList(x);
-		y = $elm$core$Set$toList(y);
-	}
-	if (x.$ === 'RBNode_elm_builtin' || x.$ === 'RBEmpty_elm_builtin')
-	{
-		x = $elm$core$Dict$toList(x);
-		y = $elm$core$Dict$toList(y);
-	}
-	//*/
-
-	/**_UNUSED/
-	if (x.$ < 0)
-	{
-		x = $elm$core$Dict$toList(x);
-		y = $elm$core$Dict$toList(y);
-	}
-	//*/
-
-	for (var key in x)
-	{
-		if (!_Utils_eqHelp(x[key], y[key], depth + 1, stack))
-		{
-			return false;
-		}
-	}
-	return true;
-}
-
-var _Utils_equal = F2(_Utils_eq);
-var _Utils_notEqual = F2(function(a, b) { return !_Utils_eq(a,b); });
-
-
-
-// COMPARISONS
-
-// Code in Generate/JavaScript.hs, Basics.js, and List.js depends on
-// the particular integer values assigned to LT, EQ, and GT.
-
-function _Utils_cmp(x, y, ord)
-{
-	if (typeof x !== 'object')
-	{
-		return x === y ? /*EQ*/ 0 : x < y ? /*LT*/ -1 : /*GT*/ 1;
-	}
-
-	/**/
-	if (x instanceof String)
-	{
-		var a = x.valueOf();
-		var b = y.valueOf();
-		return a === b ? 0 : a < b ? -1 : 1;
-	}
-	//*/
-
-	/**_UNUSED/
-	if (typeof x.$ === 'undefined')
-	//*/
-	/**/
-	if (x.$[0] === '#')
-	//*/
-	{
-		return (ord = _Utils_cmp(x.a, y.a))
-			? ord
-			: (ord = _Utils_cmp(x.b, y.b))
-				? ord
-				: _Utils_cmp(x.c, y.c);
-	}
-
-	// traverse conses until end of a list or a mismatch
-	for (; x.b && y.b && !(ord = _Utils_cmp(x.a, y.a)); x = x.b, y = y.b) {} // WHILE_CONSES
-	return ord || (x.b ? /*GT*/ 1 : y.b ? /*LT*/ -1 : /*EQ*/ 0);
-}
-
-var _Utils_lt = F2(function(a, b) { return _Utils_cmp(a, b) < 0; });
-var _Utils_le = F2(function(a, b) { return _Utils_cmp(a, b) < 1; });
-var _Utils_gt = F2(function(a, b) { return _Utils_cmp(a, b) > 0; });
-var _Utils_ge = F2(function(a, b) { return _Utils_cmp(a, b) >= 0; });
-
-var _Utils_compare = F2(function(x, y)
-{
-	var n = _Utils_cmp(x, y);
-	return n < 0 ? $elm$core$Basics$LT : n ? $elm$core$Basics$GT : $elm$core$Basics$EQ;
-});
-
-
-// COMMON VALUES
-
-var _Utils_Tuple0_UNUSED = 0;
-var _Utils_Tuple0 = { $: '#0' };
-
-function _Utils_Tuple2_UNUSED(a, b) { return { a: a, b: b }; }
-function _Utils_Tuple2(a, b) { return { $: '#2', a: a, b: b }; }
-
-function _Utils_Tuple3_UNUSED(a, b, c) { return { a: a, b: b, c: c }; }
-function _Utils_Tuple3(a, b, c) { return { $: '#3', a: a, b: b, c: c }; }
-
-function _Utils_chr_UNUSED(c) { return c; }
-function _Utils_chr(c) { return new String(c); }
-
-
-// RECORDS
-
-function _Utils_update(oldRecord, updatedFields)
-{
-	var newRecord = {};
-
-	for (var key in oldRecord)
-	{
-		newRecord[key] = oldRecord[key];
-	}
-
-	for (var key in updatedFields)
-	{
-		newRecord[key] = updatedFields[key];
-	}
-
-	return newRecord;
-}
-
-
-// APPEND
-
-var _Utils_append = F2(_Utils_ap);
-
-function _Utils_ap(xs, ys)
-{
-	// append Strings
-	if (typeof xs === 'string')
-	{
-		return xs + ys;
-	}
-
-	// append Lists
-	if (!xs.b)
-	{
-		return ys;
-	}
-	var root = _List_Cons(xs.a, ys);
-	xs = xs.b
-	for (var curr = root; xs.b; xs = xs.b) // WHILE_CONS
-	{
-		curr = curr.b = _List_Cons(xs.a, ys);
-	}
-	return root;
-}
-
-
-
-var _List_Nil_UNUSED = { $: 0 };
-var _List_Nil = { $: '[]' };
-
-function _List_Cons_UNUSED(hd, tl) { return { $: 1, a: hd, b: tl }; }
-function _List_Cons(hd, tl) { return { $: '::', a: hd, b: tl }; }
-
-
-var _List_cons = F2(_List_Cons);
-
-function _List_fromArray(arr)
-{
-	var out = _List_Nil;
-	for (var i = arr.length; i--; )
-	{
-		out = _List_Cons(arr[i], out);
-	}
-	return out;
-}
-
-function _List_toArray(xs)
-{
-	for (var out = []; xs.b; xs = xs.b) // WHILE_CONS
-	{
-		out.push(xs.a);
-	}
-	return out;
-}
-
-var _List_map2 = F3(function(f, xs, ys)
-{
-	for (var arr = []; xs.b && ys.b; xs = xs.b, ys = ys.b) // WHILE_CONSES
-	{
-		arr.push(A2(f, xs.a, ys.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_map3 = F4(function(f, xs, ys, zs)
-{
-	for (var arr = []; xs.b && ys.b && zs.b; xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
-	{
-		arr.push(A3(f, xs.a, ys.a, zs.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_map4 = F5(function(f, ws, xs, ys, zs)
-{
-	for (var arr = []; ws.b && xs.b && ys.b && zs.b; ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
-	{
-		arr.push(A4(f, ws.a, xs.a, ys.a, zs.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_map5 = F6(function(f, vs, ws, xs, ys, zs)
-{
-	for (var arr = []; vs.b && ws.b && xs.b && ys.b && zs.b; vs = vs.b, ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
-	{
-		arr.push(A5(f, vs.a, ws.a, xs.a, ys.a, zs.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_sortBy = F2(function(f, xs)
-{
-	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
-		return _Utils_cmp(f(a), f(b));
-	}));
-});
-
-var _List_sortWith = F2(function(f, xs)
-{
-	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
-		var ord = A2(f, a, b);
-		return ord === $elm$core$Basics$EQ ? 0 : ord === $elm$core$Basics$LT ? -1 : 1;
-	}));
-});
 
 
 
@@ -3932,348 +3932,6 @@ function _VirtualDom_dekey(keyedNode)
 
 
 
-var _Bitwise_and = F2(function(a, b)
-{
-	return a & b;
-});
-
-var _Bitwise_or = F2(function(a, b)
-{
-	return a | b;
-});
-
-var _Bitwise_xor = F2(function(a, b)
-{
-	return a ^ b;
-});
-
-function _Bitwise_complement(a)
-{
-	return ~a;
-};
-
-var _Bitwise_shiftLeftBy = F2(function(offset, a)
-{
-	return a << offset;
-});
-
-var _Bitwise_shiftRightBy = F2(function(offset, a)
-{
-	return a >> offset;
-});
-
-var _Bitwise_shiftRightZfBy = F2(function(offset, a)
-{
-	return a >>> offset;
-});
-
-
-
-// SEND REQUEST
-
-var _Http_toTask = F3(function(router, toTask, request)
-{
-	return _Scheduler_binding(function(callback)
-	{
-		function done(response) {
-			callback(toTask(request.expect.a(response)));
-		}
-
-		var xhr = new XMLHttpRequest();
-		xhr.addEventListener('error', function() { done($elm$http$Http$NetworkError_); });
-		xhr.addEventListener('timeout', function() { done($elm$http$Http$Timeout_); });
-		xhr.addEventListener('load', function() { done(_Http_toResponse(request.expect.b, xhr)); });
-		$elm$core$Maybe$isJust(request.tracker) && _Http_track(router, xhr, request.tracker.a);
-
-		try {
-			xhr.open(request.method, request.url, true);
-		} catch (e) {
-			return done($elm$http$Http$BadUrl_(request.url));
-		}
-
-		_Http_configureRequest(xhr, request);
-
-		request.body.a && xhr.setRequestHeader('Content-Type', request.body.a);
-		xhr.send(request.body.b);
-
-		return function() { xhr.c = true; xhr.abort(); };
-	});
-});
-
-
-// CONFIGURE
-
-function _Http_configureRequest(xhr, request)
-{
-	for (var headers = request.headers; headers.b; headers = headers.b) // WHILE_CONS
-	{
-		xhr.setRequestHeader(headers.a.a, headers.a.b);
-	}
-	xhr.timeout = request.timeout.a || 0;
-	xhr.responseType = request.expect.d;
-	xhr.withCredentials = request.allowCookiesFromOtherDomains;
-}
-
-
-// RESPONSES
-
-function _Http_toResponse(toBody, xhr)
-{
-	return A2(
-		200 <= xhr.status && xhr.status < 300 ? $elm$http$Http$GoodStatus_ : $elm$http$Http$BadStatus_,
-		_Http_toMetadata(xhr),
-		toBody(xhr.response)
-	);
-}
-
-
-// METADATA
-
-function _Http_toMetadata(xhr)
-{
-	return {
-		url: xhr.responseURL,
-		statusCode: xhr.status,
-		statusText: xhr.statusText,
-		headers: _Http_parseHeaders(xhr.getAllResponseHeaders())
-	};
-}
-
-
-// HEADERS
-
-function _Http_parseHeaders(rawHeaders)
-{
-	if (!rawHeaders)
-	{
-		return $elm$core$Dict$empty;
-	}
-
-	var headers = $elm$core$Dict$empty;
-	var headerPairs = rawHeaders.split('\r\n');
-	for (var i = headerPairs.length; i--; )
-	{
-		var headerPair = headerPairs[i];
-		var index = headerPair.indexOf(': ');
-		if (index > 0)
-		{
-			var key = headerPair.substring(0, index);
-			var value = headerPair.substring(index + 2);
-
-			headers = A3($elm$core$Dict$update, key, function(oldValue) {
-				return $elm$core$Maybe$Just($elm$core$Maybe$isJust(oldValue)
-					? value + ', ' + oldValue.a
-					: value
-				);
-			}, headers);
-		}
-	}
-	return headers;
-}
-
-
-// EXPECT
-
-var _Http_expect = F3(function(type, toBody, toValue)
-{
-	return {
-		$: 0,
-		d: type,
-		b: toBody,
-		a: toValue
-	};
-});
-
-var _Http_mapExpect = F2(function(func, expect)
-{
-	return {
-		$: 0,
-		d: expect.d,
-		b: expect.b,
-		a: function(x) { return func(expect.a(x)); }
-	};
-});
-
-function _Http_toDataView(arrayBuffer)
-{
-	return new DataView(arrayBuffer);
-}
-
-
-// BODY and PARTS
-
-var _Http_emptyBody = { $: 0 };
-var _Http_pair = F2(function(a, b) { return { $: 0, a: a, b: b }; });
-
-function _Http_toFormData(parts)
-{
-	for (var formData = new FormData(); parts.b; parts = parts.b) // WHILE_CONS
-	{
-		var part = parts.a;
-		formData.append(part.a, part.b);
-	}
-	return formData;
-}
-
-var _Http_bytesToBlob = F2(function(mime, bytes)
-{
-	return new Blob([bytes], { type: mime });
-});
-
-
-// PROGRESS
-
-function _Http_track(router, xhr, tracker)
-{
-	// TODO check out lengthComputable on loadstart event
-
-	xhr.upload.addEventListener('progress', function(event) {
-		if (xhr.c) { return; }
-		_Scheduler_rawSpawn(A2($elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, $elm$http$Http$Sending({
-			sent: event.loaded,
-			size: event.total
-		}))));
-	});
-	xhr.addEventListener('progress', function(event) {
-		if (xhr.c) { return; }
-		_Scheduler_rawSpawn(A2($elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, $elm$http$Http$Receiving({
-			received: event.loaded,
-			size: event.lengthComputable ? $elm$core$Maybe$Just(event.total) : $elm$core$Maybe$Nothing
-		}))));
-	});
-}
-
-
-
-// STRINGS
-
-
-var _Parser_isSubString = F5(function(smallString, offset, row, col, bigString)
-{
-	var smallLength = smallString.length;
-	var isGood = offset + smallLength <= bigString.length;
-
-	for (var i = 0; isGood && i < smallLength; )
-	{
-		var code = bigString.charCodeAt(offset);
-		isGood =
-			smallString[i++] === bigString[offset++]
-			&& (
-				code === 0x000A /* \n */
-					? ( row++, col=1 )
-					: ( col++, (code & 0xF800) === 0xD800 ? smallString[i++] === bigString[offset++] : 1 )
-			)
-	}
-
-	return _Utils_Tuple3(isGood ? offset : -1, row, col);
-});
-
-
-
-// CHARS
-
-
-var _Parser_isSubChar = F3(function(predicate, offset, string)
-{
-	return (
-		string.length <= offset
-			? -1
-			:
-		(string.charCodeAt(offset) & 0xF800) === 0xD800
-			? (predicate(_Utils_chr(string.substr(offset, 2))) ? offset + 2 : -1)
-			:
-		(predicate(_Utils_chr(string[offset]))
-			? ((string[offset] === '\n') ? -2 : (offset + 1))
-			: -1
-		)
-	);
-});
-
-
-var _Parser_isAsciiCode = F3(function(code, offset, string)
-{
-	return string.charCodeAt(offset) === code;
-});
-
-
-
-// NUMBERS
-
-
-var _Parser_chompBase10 = F2(function(offset, string)
-{
-	for (; offset < string.length; offset++)
-	{
-		var code = string.charCodeAt(offset);
-		if (code < 0x30 || 0x39 < code)
-		{
-			return offset;
-		}
-	}
-	return offset;
-});
-
-
-var _Parser_consumeBase = F3(function(base, offset, string)
-{
-	for (var total = 0; offset < string.length; offset++)
-	{
-		var digit = string.charCodeAt(offset) - 0x30;
-		if (digit < 0 || base <= digit) break;
-		total = base * total + digit;
-	}
-	return _Utils_Tuple2(offset, total);
-});
-
-
-var _Parser_consumeBase16 = F2(function(offset, string)
-{
-	for (var total = 0; offset < string.length; offset++)
-	{
-		var code = string.charCodeAt(offset);
-		if (0x30 <= code && code <= 0x39)
-		{
-			total = 16 * total + code - 0x30;
-		}
-		else if (0x41 <= code && code <= 0x46)
-		{
-			total = 16 * total + code - 55;
-		}
-		else if (0x61 <= code && code <= 0x66)
-		{
-			total = 16 * total + code - 87;
-		}
-		else
-		{
-			break;
-		}
-	}
-	return _Utils_Tuple2(offset, total);
-});
-
-
-
-// FIND STRING
-
-
-var _Parser_findSubString = F5(function(smallString, offset, row, col, bigString)
-{
-	var newOffset = bigString.indexOf(smallString, offset);
-	var target = newOffset < 0 ? bigString.length : newOffset + smallString.length;
-
-	while (offset < target)
-	{
-		var code = bigString.charCodeAt(offset++);
-		code === 0x000A /* \n */
-			? ( col=1, row++ )
-			: ( col++, (code & 0xF800) === 0xD800 && offset++ )
-	}
-
-	return _Utils_Tuple3(newOffset, row, col);
-});
-
-
-
 
 // ELEMENT
 
@@ -4712,35 +4370,352 @@ function _Browser_load(url)
 		}
 	}));
 }
-var $elm$core$Basics$apR = F2(
-	function (x, f) {
-		return f(x);
+
+
+
+// SEND REQUEST
+
+var _Http_toTask = F3(function(router, toTask, request)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		function done(response) {
+			callback(toTask(request.expect.a(response)));
+		}
+
+		var xhr = new XMLHttpRequest();
+		xhr.addEventListener('error', function() { done($elm$http$Http$NetworkError_); });
+		xhr.addEventListener('timeout', function() { done($elm$http$Http$Timeout_); });
+		xhr.addEventListener('load', function() { done(_Http_toResponse(request.expect.b, xhr)); });
+		$elm$core$Maybe$isJust(request.tracker) && _Http_track(router, xhr, request.tracker.a);
+
+		try {
+			xhr.open(request.method, request.url, true);
+		} catch (e) {
+			return done($elm$http$Http$BadUrl_(request.url));
+		}
+
+		_Http_configureRequest(xhr, request);
+
+		request.body.a && xhr.setRequestHeader('Content-Type', request.body.a);
+		xhr.send(request.body.b);
+
+		return function() { xhr.c = true; xhr.abort(); };
 	});
-var $elm$core$List$cons = _List_cons;
-var $elm$core$Elm$JsArray$foldr = _JsArray_foldr;
-var $elm$core$Array$foldr = F3(
-	function (func, baseCase, _v0) {
-		var tree = _v0.c;
-		var tail = _v0.d;
-		var helper = F2(
-			function (node, acc) {
-				if (node.$ === 'SubTree') {
-					var subTree = node.a;
-					return A3($elm$core$Elm$JsArray$foldr, helper, acc, subTree);
-				} else {
-					var values = node.a;
-					return A3($elm$core$Elm$JsArray$foldr, func, acc, values);
-				}
-			});
-		return A3(
-			$elm$core$Elm$JsArray$foldr,
-			helper,
-			A3($elm$core$Elm$JsArray$foldr, func, baseCase, tail),
-			tree);
+});
+
+
+// CONFIGURE
+
+function _Http_configureRequest(xhr, request)
+{
+	for (var headers = request.headers; headers.b; headers = headers.b) // WHILE_CONS
+	{
+		xhr.setRequestHeader(headers.a.a, headers.a.b);
+	}
+	xhr.timeout = request.timeout.a || 0;
+	xhr.responseType = request.expect.d;
+	xhr.withCredentials = request.allowCookiesFromOtherDomains;
+}
+
+
+// RESPONSES
+
+function _Http_toResponse(toBody, xhr)
+{
+	return A2(
+		200 <= xhr.status && xhr.status < 300 ? $elm$http$Http$GoodStatus_ : $elm$http$Http$BadStatus_,
+		_Http_toMetadata(xhr),
+		toBody(xhr.response)
+	);
+}
+
+
+// METADATA
+
+function _Http_toMetadata(xhr)
+{
+	return {
+		url: xhr.responseURL,
+		statusCode: xhr.status,
+		statusText: xhr.statusText,
+		headers: _Http_parseHeaders(xhr.getAllResponseHeaders())
+	};
+}
+
+
+// HEADERS
+
+function _Http_parseHeaders(rawHeaders)
+{
+	if (!rawHeaders)
+	{
+		return $elm$core$Dict$empty;
+	}
+
+	var headers = $elm$core$Dict$empty;
+	var headerPairs = rawHeaders.split('\r\n');
+	for (var i = headerPairs.length; i--; )
+	{
+		var headerPair = headerPairs[i];
+		var index = headerPair.indexOf(': ');
+		if (index > 0)
+		{
+			var key = headerPair.substring(0, index);
+			var value = headerPair.substring(index + 2);
+
+			headers = A3($elm$core$Dict$update, key, function(oldValue) {
+				return $elm$core$Maybe$Just($elm$core$Maybe$isJust(oldValue)
+					? value + ', ' + oldValue.a
+					: value
+				);
+			}, headers);
+		}
+	}
+	return headers;
+}
+
+
+// EXPECT
+
+var _Http_expect = F3(function(type, toBody, toValue)
+{
+	return {
+		$: 0,
+		d: type,
+		b: toBody,
+		a: toValue
+	};
+});
+
+var _Http_mapExpect = F2(function(func, expect)
+{
+	return {
+		$: 0,
+		d: expect.d,
+		b: expect.b,
+		a: function(x) { return func(expect.a(x)); }
+	};
+});
+
+function _Http_toDataView(arrayBuffer)
+{
+	return new DataView(arrayBuffer);
+}
+
+
+// BODY and PARTS
+
+var _Http_emptyBody = { $: 0 };
+var _Http_pair = F2(function(a, b) { return { $: 0, a: a, b: b }; });
+
+function _Http_toFormData(parts)
+{
+	for (var formData = new FormData(); parts.b; parts = parts.b) // WHILE_CONS
+	{
+		var part = parts.a;
+		formData.append(part.a, part.b);
+	}
+	return formData;
+}
+
+var _Http_bytesToBlob = F2(function(mime, bytes)
+{
+	return new Blob([bytes], { type: mime });
+});
+
+
+// PROGRESS
+
+function _Http_track(router, xhr, tracker)
+{
+	// TODO check out lengthComputable on loadstart event
+
+	xhr.upload.addEventListener('progress', function(event) {
+		if (xhr.c) { return; }
+		_Scheduler_rawSpawn(A2($elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, $elm$http$Http$Sending({
+			sent: event.loaded,
+			size: event.total
+		}))));
 	});
-var $elm$core$Array$toList = function (array) {
-	return A3($elm$core$Array$foldr, $elm$core$List$cons, _List_Nil, array);
+	xhr.addEventListener('progress', function(event) {
+		if (xhr.c) { return; }
+		_Scheduler_rawSpawn(A2($elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, $elm$http$Http$Receiving({
+			received: event.loaded,
+			size: event.lengthComputable ? $elm$core$Maybe$Just(event.total) : $elm$core$Maybe$Nothing
+		}))));
+	});
+}
+
+
+
+// STRINGS
+
+
+var _Parser_isSubString = F5(function(smallString, offset, row, col, bigString)
+{
+	var smallLength = smallString.length;
+	var isGood = offset + smallLength <= bigString.length;
+
+	for (var i = 0; isGood && i < smallLength; )
+	{
+		var code = bigString.charCodeAt(offset);
+		isGood =
+			smallString[i++] === bigString[offset++]
+			&& (
+				code === 0x000A /* \n */
+					? ( row++, col=1 )
+					: ( col++, (code & 0xF800) === 0xD800 ? smallString[i++] === bigString[offset++] : 1 )
+			)
+	}
+
+	return _Utils_Tuple3(isGood ? offset : -1, row, col);
+});
+
+
+
+// CHARS
+
+
+var _Parser_isSubChar = F3(function(predicate, offset, string)
+{
+	return (
+		string.length <= offset
+			? -1
+			:
+		(string.charCodeAt(offset) & 0xF800) === 0xD800
+			? (predicate(_Utils_chr(string.substr(offset, 2))) ? offset + 2 : -1)
+			:
+		(predicate(_Utils_chr(string[offset]))
+			? ((string[offset] === '\n') ? -2 : (offset + 1))
+			: -1
+		)
+	);
+});
+
+
+var _Parser_isAsciiCode = F3(function(code, offset, string)
+{
+	return string.charCodeAt(offset) === code;
+});
+
+
+
+// NUMBERS
+
+
+var _Parser_chompBase10 = F2(function(offset, string)
+{
+	for (; offset < string.length; offset++)
+	{
+		var code = string.charCodeAt(offset);
+		if (code < 0x30 || 0x39 < code)
+		{
+			return offset;
+		}
+	}
+	return offset;
+});
+
+
+var _Parser_consumeBase = F3(function(base, offset, string)
+{
+	for (var total = 0; offset < string.length; offset++)
+	{
+		var digit = string.charCodeAt(offset) - 0x30;
+		if (digit < 0 || base <= digit) break;
+		total = base * total + digit;
+	}
+	return _Utils_Tuple2(offset, total);
+});
+
+
+var _Parser_consumeBase16 = F2(function(offset, string)
+{
+	for (var total = 0; offset < string.length; offset++)
+	{
+		var code = string.charCodeAt(offset);
+		if (0x30 <= code && code <= 0x39)
+		{
+			total = 16 * total + code - 0x30;
+		}
+		else if (0x41 <= code && code <= 0x46)
+		{
+			total = 16 * total + code - 55;
+		}
+		else if (0x61 <= code && code <= 0x66)
+		{
+			total = 16 * total + code - 87;
+		}
+		else
+		{
+			break;
+		}
+	}
+	return _Utils_Tuple2(offset, total);
+});
+
+
+
+// FIND STRING
+
+
+var _Parser_findSubString = F5(function(smallString, offset, row, col, bigString)
+{
+	var newOffset = bigString.indexOf(smallString, offset);
+	var target = newOffset < 0 ? bigString.length : newOffset + smallString.length;
+
+	while (offset < target)
+	{
+		var code = bigString.charCodeAt(offset++);
+		code === 0x000A /* \n */
+			? ( col=1, row++ )
+			: ( col++, (code & 0xF800) === 0xD800 && offset++ )
+	}
+
+	return _Utils_Tuple3(newOffset, row, col);
+});
+
+
+
+var _Bitwise_and = F2(function(a, b)
+{
+	return a & b;
+});
+
+var _Bitwise_or = F2(function(a, b)
+{
+	return a | b;
+});
+
+var _Bitwise_xor = F2(function(a, b)
+{
+	return a ^ b;
+});
+
+function _Bitwise_complement(a)
+{
+	return ~a;
 };
+
+var _Bitwise_shiftLeftBy = F2(function(offset, a)
+{
+	return a << offset;
+});
+
+var _Bitwise_shiftRightBy = F2(function(offset, a)
+{
+	return a >> offset;
+});
+
+var _Bitwise_shiftRightZfBy = F2(function(offset, a)
+{
+	return a >>> offset;
+});
+var $elm$core$Basics$EQ = {$: 'EQ'};
+var $elm$core$Basics$GT = {$: 'GT'};
+var $elm$core$Basics$LT = {$: 'LT'};
+var $elm$core$List$cons = _List_cons;
 var $elm$core$Dict$foldr = F3(
 	function (func, acc, t) {
 		foldr:
@@ -4793,19 +4768,30 @@ var $elm$core$Set$toList = function (_v0) {
 	var dict = _v0.a;
 	return $elm$core$Dict$keys(dict);
 };
-var $elm$core$Basics$EQ = {$: 'EQ'};
-var $elm$core$Basics$GT = {$: 'GT'};
-var $elm$core$Basics$LT = {$: 'LT'};
-var $author$project$App$Product$ForA = function (a) {
-	return {$: 'ForA', a: a};
-};
-var $author$project$App$Product$ForB = function (a) {
-	return {$: 'ForB', a: a};
-};
-var $author$project$App$Product$Model = F2(
-	function (a, b) {
-		return {$: 'Model', a: a, b: b};
+var $elm$core$Elm$JsArray$foldr = _JsArray_foldr;
+var $elm$core$Array$foldr = F3(
+	function (func, baseCase, _v0) {
+		var tree = _v0.c;
+		var tail = _v0.d;
+		var helper = F2(
+			function (node, acc) {
+				if (node.$ === 'SubTree') {
+					var subTree = node.a;
+					return A3($elm$core$Elm$JsArray$foldr, helper, acc, subTree);
+				} else {
+					var values = node.a;
+					return A3($elm$core$Elm$JsArray$foldr, func, acc, values);
+				}
+			});
+		return A3(
+			$elm$core$Elm$JsArray$foldr,
+			helper,
+			A3($elm$core$Elm$JsArray$foldr, func, baseCase, tail),
+			tree);
 	});
+var $elm$core$Array$toList = function (array) {
+	return A3($elm$core$Array$foldr, $elm$core$List$cons, _List_Nil, array);
+};
 var $elm$core$Result$Err = function (a) {
 	return {$: 'Err', a: a};
 };
@@ -5071,6 +5057,10 @@ var $elm$core$Basics$apL = F2(
 	function (f, x) {
 		return f(x);
 	});
+var $elm$core$Basics$apR = F2(
+	function (x, f) {
+		return f(x);
+	});
 var $elm$core$Basics$eq = _Utils_equal;
 var $elm$core$Basics$floor = _Basics_floor;
 var $elm$core$Elm$JsArray$length = _JsArray_length;
@@ -5197,79 +5187,176 @@ var $elm$core$Result$isOk = function (result) {
 		return false;
 	}
 };
-var $elm$core$Platform$Cmd$batch = _Platform_batch;
-var $elm$core$Basics$composeL = F3(
-	function (g, f, x) {
-		return g(
-			f(x));
-	});
-var $elm$core$Platform$Cmd$map = _Platform_map;
-var $author$project$App$External = function (a) {
+var $elm$json$Json$Decode$map = _Json_map1;
+var $elm$json$Json$Decode$map2 = _Json_map2;
+var $elm$json$Json$Decode$succeed = _Json_succeed;
+var $elm$virtual_dom$VirtualDom$toHandlerInt = function (handler) {
+	switch (handler.$) {
+		case 'Normal':
+			return 0;
+		case 'MayStopPropagation':
+			return 1;
+		case 'MayPreventDefault':
+			return 2;
+		default:
+			return 3;
+	}
+};
+var $elm$browser$Browser$External = function (a) {
 	return {$: 'External', a: a};
 };
-var $author$project$App$Internal = function (a) {
+var $elm$browser$Browser$Internal = function (a) {
 	return {$: 'Internal', a: a};
 };
-var $author$project$App$mapInternal = F2(
-	function (f, m) {
-		if (m.$ === 'External') {
-			var msg = m.a;
-			return $author$project$App$External(msg);
-		} else {
-			var msg = m.a;
-			return $author$project$App$Internal(
-				f(msg));
-		}
-	});
-var $elm$core$Tuple$second = function (_v0) {
-	var y = _v0.b;
-	return y;
+var $elm$core$Basics$identity = function (x) {
+	return x;
 };
-var $author$project$App$Product$init = F2(
-	function (appA, appB) {
-		return _Utils_Tuple2(
-			A2($author$project$App$Product$Model, appA.init.a, appB.init.a),
-			$elm$core$Platform$Cmd$batch(
-				_List_fromArray(
-					[
-						A2(
-						A2($elm$core$Basics$composeL, $elm$core$Platform$Cmd$map, $author$project$App$mapInternal),
-						$author$project$App$Product$ForA,
-						appA.init.b),
-						A2(
-						A2($elm$core$Basics$composeL, $elm$core$Platform$Cmd$map, $author$project$App$mapInternal),
-						$author$project$App$Product$ForB,
-						appB.init.b)
-					])));
+var $elm$browser$Browser$Dom$NotFound = function (a) {
+	return {$: 'NotFound', a: a};
+};
+var $elm$url$Url$Http = {$: 'Http'};
+var $elm$url$Url$Https = {$: 'Https'};
+var $elm$url$Url$Url = F6(
+	function (protocol, host, port_, path, query, fragment) {
+		return {fragment: fragment, host: host, path: path, port_: port_, protocol: protocol, query: query};
 	});
-var $author$project$App$Product$update = F4(
-	function (appA, appB, msg, _v0) {
-		var modelA = _v0.a;
-		var modelB = _v0.b;
-		if (msg.$ === 'ForA') {
-			var msgA = msg.a;
-			var _v2 = A2(appA.update, msgA, modelA);
-			var newModelA = _v2.a;
-			var cmd = _v2.b;
-			return _Utils_Tuple2(
-				A2($author$project$App$Product$Model, newModelA, modelB),
-				A2(
-					A2($elm$core$Basics$composeL, $elm$core$Platform$Cmd$map, $author$project$App$mapInternal),
-					$author$project$App$Product$ForA,
-					cmd));
+var $elm$core$String$contains = _String_contains;
+var $elm$core$String$length = _String_length;
+var $elm$core$String$slice = _String_slice;
+var $elm$core$String$dropLeft = F2(
+	function (n, string) {
+		return (n < 1) ? string : A3(
+			$elm$core$String$slice,
+			n,
+			$elm$core$String$length(string),
+			string);
+	});
+var $elm$core$String$indexes = _String_indexes;
+var $elm$core$String$isEmpty = function (string) {
+	return string === '';
+};
+var $elm$core$String$left = F2(
+	function (n, string) {
+		return (n < 1) ? '' : A3($elm$core$String$slice, 0, n, string);
+	});
+var $elm$core$String$toInt = _String_toInt;
+var $elm$url$Url$chompBeforePath = F5(
+	function (protocol, path, params, frag, str) {
+		if ($elm$core$String$isEmpty(str) || A2($elm$core$String$contains, '@', str)) {
+			return $elm$core$Maybe$Nothing;
 		} else {
-			var msgB = msg.a;
-			var _v3 = A2(appB.update, msgB, modelB);
-			var newModelB = _v3.a;
-			var cmd = _v3.b;
-			return _Utils_Tuple2(
-				A2($author$project$App$Product$Model, modelA, newModelB),
-				A2(
-					A2($elm$core$Basics$composeL, $elm$core$Platform$Cmd$map, $author$project$App$mapInternal),
-					$author$project$App$Product$ForB,
-					cmd));
+			var _v0 = A2($elm$core$String$indexes, ':', str);
+			if (!_v0.b) {
+				return $elm$core$Maybe$Just(
+					A6($elm$url$Url$Url, protocol, str, $elm$core$Maybe$Nothing, path, params, frag));
+			} else {
+				if (!_v0.b.b) {
+					var i = _v0.a;
+					var _v1 = $elm$core$String$toInt(
+						A2($elm$core$String$dropLeft, i + 1, str));
+					if (_v1.$ === 'Nothing') {
+						return $elm$core$Maybe$Nothing;
+					} else {
+						var port_ = _v1;
+						return $elm$core$Maybe$Just(
+							A6(
+								$elm$url$Url$Url,
+								protocol,
+								A2($elm$core$String$left, i, str),
+								port_,
+								path,
+								params,
+								frag));
+					}
+				} else {
+					return $elm$core$Maybe$Nothing;
+				}
+			}
 		}
 	});
+var $elm$url$Url$chompBeforeQuery = F4(
+	function (protocol, params, frag, str) {
+		if ($elm$core$String$isEmpty(str)) {
+			return $elm$core$Maybe$Nothing;
+		} else {
+			var _v0 = A2($elm$core$String$indexes, '/', str);
+			if (!_v0.b) {
+				return A5($elm$url$Url$chompBeforePath, protocol, '/', params, frag, str);
+			} else {
+				var i = _v0.a;
+				return A5(
+					$elm$url$Url$chompBeforePath,
+					protocol,
+					A2($elm$core$String$dropLeft, i, str),
+					params,
+					frag,
+					A2($elm$core$String$left, i, str));
+			}
+		}
+	});
+var $elm$url$Url$chompBeforeFragment = F3(
+	function (protocol, frag, str) {
+		if ($elm$core$String$isEmpty(str)) {
+			return $elm$core$Maybe$Nothing;
+		} else {
+			var _v0 = A2($elm$core$String$indexes, '?', str);
+			if (!_v0.b) {
+				return A4($elm$url$Url$chompBeforeQuery, protocol, $elm$core$Maybe$Nothing, frag, str);
+			} else {
+				var i = _v0.a;
+				return A4(
+					$elm$url$Url$chompBeforeQuery,
+					protocol,
+					$elm$core$Maybe$Just(
+						A2($elm$core$String$dropLeft, i + 1, str)),
+					frag,
+					A2($elm$core$String$left, i, str));
+			}
+		}
+	});
+var $elm$url$Url$chompAfterProtocol = F2(
+	function (protocol, str) {
+		if ($elm$core$String$isEmpty(str)) {
+			return $elm$core$Maybe$Nothing;
+		} else {
+			var _v0 = A2($elm$core$String$indexes, '#', str);
+			if (!_v0.b) {
+				return A3($elm$url$Url$chompBeforeFragment, protocol, $elm$core$Maybe$Nothing, str);
+			} else {
+				var i = _v0.a;
+				return A3(
+					$elm$url$Url$chompBeforeFragment,
+					protocol,
+					$elm$core$Maybe$Just(
+						A2($elm$core$String$dropLeft, i + 1, str)),
+					A2($elm$core$String$left, i, str));
+			}
+		}
+	});
+var $elm$core$String$startsWith = _String_startsWith;
+var $elm$url$Url$fromString = function (str) {
+	return A2($elm$core$String$startsWith, 'http://', str) ? A2(
+		$elm$url$Url$chompAfterProtocol,
+		$elm$url$Url$Http,
+		A2($elm$core$String$dropLeft, 7, str)) : (A2($elm$core$String$startsWith, 'https://', str) ? A2(
+		$elm$url$Url$chompAfterProtocol,
+		$elm$url$Url$Https,
+		A2($elm$core$String$dropLeft, 8, str)) : $elm$core$Maybe$Nothing);
+};
+var $elm$core$Basics$never = function (_v0) {
+	never:
+	while (true) {
+		var nvr = _v0.a;
+		var $temp$_v0 = nvr;
+		_v0 = $temp$_v0;
+		continue never;
+	}
+};
+var $elm$core$Task$Perform = function (a) {
+	return {$: 'Perform', a: a};
+};
+var $elm$core$Task$succeed = _Scheduler_succeed;
+var $elm$core$Task$init = $elm$core$Task$succeed(_Utils_Tuple0);
 var $elm$core$List$foldrHelper = F4(
 	function (fn, acc, ctr, ls) {
 		if (!ls.b) {
@@ -5325,36 +5412,6 @@ var $elm$core$List$foldr = F3(
 	function (fn, acc, ls) {
 		return A4($elm$core$List$foldrHelper, fn, acc, 0, ls);
 	});
-var $elm$core$List$append = F2(
-	function (xs, ys) {
-		if (!ys.b) {
-			return xs;
-		} else {
-			return A3($elm$core$List$foldr, $elm$core$List$cons, ys, xs);
-		}
-	});
-var $elm$core$List$concat = function (lists) {
-	return A3($elm$core$List$foldr, $elm$core$List$append, _List_Nil, lists);
-};
-var $rtfeldman$elm_css$VirtualDom$Styled$KeyedNode = F3(
-	function (a, b, c) {
-		return {$: 'KeyedNode', a: a, b: b, c: c};
-	});
-var $rtfeldman$elm_css$VirtualDom$Styled$KeyedNodeNS = F4(
-	function (a, b, c, d) {
-		return {$: 'KeyedNodeNS', a: a, b: b, c: c, d: d};
-	});
-var $rtfeldman$elm_css$VirtualDom$Styled$Node = F3(
-	function (a, b, c) {
-		return {$: 'Node', a: a, b: b, c: c};
-	});
-var $rtfeldman$elm_css$VirtualDom$Styled$NodeNS = F4(
-	function (a, b, c, d) {
-		return {$: 'NodeNS', a: a, b: b, c: c, d: d};
-	});
-var $rtfeldman$elm_css$VirtualDom$Styled$Unstyled = function (a) {
-	return {$: 'Unstyled', a: a};
-};
 var $elm$core$List$map = F2(
 	function (f, xs) {
 		return A3(
@@ -5369,236 +5426,598 @@ var $elm$core$List$map = F2(
 			_List_Nil,
 			xs);
 	});
-var $elm$json$Json$Decode$map = _Json_map1;
-var $elm$json$Json$Decode$map2 = _Json_map2;
-var $elm$json$Json$Decode$succeed = _Json_succeed;
-var $elm$virtual_dom$VirtualDom$toHandlerInt = function (handler) {
-	switch (handler.$) {
-		case 'Normal':
-			return 0;
-		case 'MayStopPropagation':
-			return 1;
-		case 'MayPreventDefault':
-			return 2;
-		default:
-			return 3;
-	}
+var $elm$core$Task$andThen = _Scheduler_andThen;
+var $elm$core$Task$map = F2(
+	function (func, taskA) {
+		return A2(
+			$elm$core$Task$andThen,
+			function (a) {
+				return $elm$core$Task$succeed(
+					func(a));
+			},
+			taskA);
+	});
+var $elm$core$Task$map2 = F3(
+	function (func, taskA, taskB) {
+		return A2(
+			$elm$core$Task$andThen,
+			function (a) {
+				return A2(
+					$elm$core$Task$andThen,
+					function (b) {
+						return $elm$core$Task$succeed(
+							A2(func, a, b));
+					},
+					taskB);
+			},
+			taskA);
+	});
+var $elm$core$Task$sequence = function (tasks) {
+	return A3(
+		$elm$core$List$foldr,
+		$elm$core$Task$map2($elm$core$List$cons),
+		$elm$core$Task$succeed(_List_Nil),
+		tasks);
 };
-var $elm$virtual_dom$VirtualDom$map = _VirtualDom_map;
-var $rtfeldman$elm_css$VirtualDom$Styled$Attribute = F3(
-	function (a, b, c) {
-		return {$: 'Attribute', a: a, b: b, c: c};
+var $elm$core$Platform$sendToApp = _Platform_sendToApp;
+var $elm$core$Task$spawnCmd = F2(
+	function (router, _v0) {
+		var task = _v0.a;
+		return _Scheduler_spawn(
+			A2(
+				$elm$core$Task$andThen,
+				$elm$core$Platform$sendToApp(router),
+				task));
 	});
-var $elm$virtual_dom$VirtualDom$mapAttribute = _VirtualDom_mapAttribute;
-var $rtfeldman$elm_css$VirtualDom$Styled$mapAttribute = F2(
-	function (transform, _v0) {
-		var prop = _v0.a;
-		var isCssStyle = _v0.b;
-		var cssTemplate = _v0.c;
-		return A3(
-			$rtfeldman$elm_css$VirtualDom$Styled$Attribute,
-			A2($elm$virtual_dom$VirtualDom$mapAttribute, transform, prop),
-			isCssStyle,
-			cssTemplate);
+var $elm$core$Task$onEffects = F3(
+	function (router, commands, state) {
+		return A2(
+			$elm$core$Task$map,
+			function (_v0) {
+				return _Utils_Tuple0;
+			},
+			$elm$core$Task$sequence(
+				A2(
+					$elm$core$List$map,
+					$elm$core$Task$spawnCmd(router),
+					commands)));
 	});
-var $rtfeldman$elm_css$VirtualDom$Styled$map = F2(
-	function (transform, vdomNode) {
-		switch (vdomNode.$) {
-			case 'Node':
-				var elemType = vdomNode.a;
-				var properties = vdomNode.b;
-				var children = vdomNode.c;
-				return A3(
-					$rtfeldman$elm_css$VirtualDom$Styled$Node,
-					elemType,
-					A2(
-						$elm$core$List$map,
-						$rtfeldman$elm_css$VirtualDom$Styled$mapAttribute(transform),
-						properties),
-					A2(
-						$elm$core$List$map,
-						$rtfeldman$elm_css$VirtualDom$Styled$map(transform),
-						children));
-			case 'NodeNS':
-				var ns = vdomNode.a;
-				var elemType = vdomNode.b;
-				var properties = vdomNode.c;
-				var children = vdomNode.d;
-				return A4(
-					$rtfeldman$elm_css$VirtualDom$Styled$NodeNS,
-					ns,
-					elemType,
-					A2(
-						$elm$core$List$map,
-						$rtfeldman$elm_css$VirtualDom$Styled$mapAttribute(transform),
-						properties),
-					A2(
-						$elm$core$List$map,
-						$rtfeldman$elm_css$VirtualDom$Styled$map(transform),
-						children));
-			case 'KeyedNode':
-				var elemType = vdomNode.a;
-				var properties = vdomNode.b;
-				var children = vdomNode.c;
-				return A3(
-					$rtfeldman$elm_css$VirtualDom$Styled$KeyedNode,
-					elemType,
-					A2(
-						$elm$core$List$map,
-						$rtfeldman$elm_css$VirtualDom$Styled$mapAttribute(transform),
-						properties),
-					A2(
-						$elm$core$List$map,
-						function (_v1) {
-							var key = _v1.a;
-							var child = _v1.b;
-							return _Utils_Tuple2(
-								key,
-								A2($rtfeldman$elm_css$VirtualDom$Styled$map, transform, child));
-						},
-						children));
-			case 'KeyedNodeNS':
-				var ns = vdomNode.a;
-				var elemType = vdomNode.b;
-				var properties = vdomNode.c;
-				var children = vdomNode.d;
-				return A4(
-					$rtfeldman$elm_css$VirtualDom$Styled$KeyedNodeNS,
-					ns,
-					elemType,
-					A2(
-						$elm$core$List$map,
-						$rtfeldman$elm_css$VirtualDom$Styled$mapAttribute(transform),
-						properties),
-					A2(
-						$elm$core$List$map,
-						function (_v2) {
-							var key = _v2.a;
-							var child = _v2.b;
-							return _Utils_Tuple2(
-								key,
-								A2($rtfeldman$elm_css$VirtualDom$Styled$map, transform, child));
-						},
-						children));
-			default:
-				var vdom = vdomNode.a;
-				return $rtfeldman$elm_css$VirtualDom$Styled$Unstyled(
-					A2($elm$virtual_dom$VirtualDom$map, transform, vdom));
+var $elm$core$Task$onSelfMsg = F3(
+	function (_v0, _v1, _v2) {
+		return $elm$core$Task$succeed(_Utils_Tuple0);
+	});
+var $elm$core$Task$cmdMap = F2(
+	function (tagger, _v0) {
+		var task = _v0.a;
+		return $elm$core$Task$Perform(
+			A2($elm$core$Task$map, tagger, task));
+	});
+_Platform_effectManagers['Task'] = _Platform_createManager($elm$core$Task$init, $elm$core$Task$onEffects, $elm$core$Task$onSelfMsg, $elm$core$Task$cmdMap);
+var $elm$core$Task$command = _Platform_leaf('Task');
+var $elm$core$Task$perform = F2(
+	function (toMessage, task) {
+		return $elm$core$Task$command(
+			$elm$core$Task$Perform(
+				A2($elm$core$Task$map, toMessage, task)));
+	});
+var $elm$browser$Browser$document = _Browser_document;
+var $author$project$Main$Loading = {$: 'Loading'};
+var $author$project$Main$ViewAlbums = function (a) {
+	return {$: 'ViewAlbums', a: a};
+};
+var $elm$core$Platform$Cmd$map = _Platform_map;
+var $author$project$QStore$Query$Query = F2(
+	function (a, b) {
+		return {$: 'Query', a: a, b: b};
+	});
+var $elm$core$List$append = F2(
+	function (xs, ys) {
+		if (!ys.b) {
+			return xs;
+		} else {
+			return A3($elm$core$List$foldr, $elm$core$List$cons, ys, xs);
 		}
 	});
-var $rtfeldman$elm_css$Html$Styled$map = $rtfeldman$elm_css$VirtualDom$Styled$map;
-var $author$project$App$Product$view = F3(
-	function (appA, appB, _v0) {
-		var modelA = _v0.a;
-		var modelB = _v0.b;
-		return $elm$core$List$concat(
-			_List_fromArray(
-				[
-					A2(
-					A2(
-						$elm$core$Basics$composeL,
-						A2($elm$core$Basics$composeL, $elm$core$List$map, $rtfeldman$elm_css$Html$Styled$map),
-						$author$project$App$mapInternal),
-					$author$project$App$Product$ForA,
-					appA.view(modelA)),
-					A2(
-					A2(
-						$elm$core$Basics$composeL,
-						A2($elm$core$Basics$composeL, $elm$core$List$map, $rtfeldman$elm_css$Html$Styled$map),
-						$author$project$App$mapInternal),
-					$author$project$App$Product$ForB,
-					appB.view(modelB))
-				]));
-	});
-var $author$project$App$Product$app = F2(
-	function (appA, appB) {
-		return {
-			init: A2($author$project$App$Product$init, appA, appB),
-			update: A2($author$project$App$Product$update, appA, appB),
-			view: A2($author$project$App$Product$view, appA, appB)
-		};
-	});
-var $rtfeldman$elm_css$VirtualDom$Styled$node = $rtfeldman$elm_css$VirtualDom$Styled$Node;
-var $rtfeldman$elm_css$Html$Styled$node = $rtfeldman$elm_css$VirtualDom$Styled$node;
-var $rtfeldman$elm_css$Html$Styled$div = $rtfeldman$elm_css$Html$Styled$node('div');
-var $rtfeldman$elm_css$Css$Preprocess$AppendProperty = function (a) {
-	return {$: 'AppendProperty', a: a};
-};
-var $elm$core$Basics$identity = function (x) {
-	return x;
-};
-var $rtfeldman$elm_css$Css$Structure$Property = function (a) {
-	return {$: 'Property', a: a};
-};
-var $rtfeldman$elm_css$Css$property = F2(
-	function (key, value) {
-		return $rtfeldman$elm_css$Css$Preprocess$AppendProperty(
-			$rtfeldman$elm_css$Css$Structure$Property(key + (':' + value)));
-	});
-var $rtfeldman$elm_css$Css$prop1 = F2(
-	function (key, arg) {
-		return A2($rtfeldman$elm_css$Css$property, key, arg.value);
-	});
-var $rtfeldman$elm_css$Css$flexGrow = $rtfeldman$elm_css$Css$prop1('flex-grow');
-var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
-var $rtfeldman$elm_css$Css$Structure$Compatible = {$: 'Compatible'};
-var $rtfeldman$elm_css$Css$UnitlessFloat = {$: 'UnitlessFloat'};
-var $elm$core$String$fromFloat = _String_fromNumber;
-var $rtfeldman$elm_css$Css$num = function (val) {
-	return {
-		lengthOrNumber: $rtfeldman$elm_css$Css$Structure$Compatible,
-		lengthOrNumberOrAutoOrNoneOrContent: $rtfeldman$elm_css$Css$Structure$Compatible,
-		lineHeight: $rtfeldman$elm_css$Css$Structure$Compatible,
-		number: $rtfeldman$elm_css$Css$Structure$Compatible,
-		numberOrInfinite: $rtfeldman$elm_css$Css$Structure$Compatible,
-		numericValue: val,
-		unitLabel: '',
-		units: $rtfeldman$elm_css$Css$UnitlessFloat,
-		value: $elm$core$String$fromFloat(val)
-	};
-};
-var $elm$virtual_dom$VirtualDom$attribute = F2(
-	function (key, value) {
-		return A2(
-			_VirtualDom_attribute,
-			_VirtualDom_noOnOrFormAction(key),
-			_VirtualDom_noJavaScriptOrHtmlUri(value));
-	});
-var $elm$core$List$any = F2(
-	function (isOkay, list) {
-		any:
-		while (true) {
-			if (!list.b) {
-				return false;
+var $author$project$QStore$Query$listApp = F2(
+	function (fl, al) {
+		var _v0 = _Utils_Tuple2(fl, al);
+		if (!_v0.a.b) {
+			return _List_Nil;
+		} else {
+			if (!_v0.b.b) {
+				return _List_Nil;
 			} else {
-				var x = list.a;
-				var xs = list.b;
-				if (isOkay(x)) {
-					return true;
+				var _v1 = _v0.a;
+				var f = _v1.a;
+				var nextfl = _v1.b;
+				var _v2 = _v0.b;
+				var a = _v2.a;
+				var nextas = _v2.b;
+				return A2(
+					$elm$core$List$cons,
+					f(a),
+					A2($author$project$QStore$Query$listApp, nextfl, nextas));
+			}
+		}
+	});
+var $elm$core$Result$map = F2(
+	function (func, ra) {
+		if (ra.$ === 'Ok') {
+			var a = ra.a;
+			return $elm$core$Result$Ok(
+				func(a));
+		} else {
+			var e = ra.a;
+			return $elm$core$Result$Err(e);
+		}
+	});
+var $author$project$QStore$Query$resApp = F2(
+	function (fr, ar) {
+		var _v0 = _Utils_Tuple2(fr, ar);
+		if (_v0.a.$ === 'Err') {
+			var err = _v0.a.a;
+			return $elm$core$Result$Err(err);
+		} else {
+			if (_v0.b.$ === 'Err') {
+				var err = _v0.b.a;
+				return $elm$core$Result$Err(err);
+			} else {
+				var f = _v0.a.a;
+				var a = _v0.b.a;
+				return $elm$core$Result$Ok(
+					f(a));
+			}
+		}
+	});
+var $author$project$QStore$Query$app = F2(
+	function (_v0, _v1) {
+		var aq = _v0.a;
+		var aproc = _v0.b;
+		var fq = _v1.a;
+		var fproc = _v1.b;
+		return A2(
+			$author$project$QStore$Query$Query,
+			A2($elm$core$List$append, fq, aq),
+			function (resp) {
+				return A2(
+					$author$project$QStore$Query$resApp,
+					A2(
+						$elm$core$Result$map,
+						$author$project$QStore$Query$listApp,
+						fproc(resp)),
+					aproc(resp));
+			});
+	});
+var $author$project$QStore$Query$QueryVar = F2(
+	function (a, b) {
+		return {$: 'QueryVar', a: a, b: b};
+	});
+var $author$project$QStore$Query$Var = function (a) {
+	return {$: 'Var', a: a};
+};
+var $elm$core$String$append = _String_append;
+var $author$project$QStore$Query$valueToId = function (v) {
+	if (v.$ === 'VId') {
+		var x = v.a;
+		return $elm$core$Maybe$Just(x);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$QStore$Query$idVar = $author$project$QStore$Query$Var(
+	function (n) {
+		return _Utils_Tuple2(
+			n + 1,
+			A2(
+				$author$project$QStore$Query$QueryVar,
+				A2(
+					$elm$core$String$append,
+					'x',
+					$elm$core$String$fromInt(n)),
+				$author$project$QStore$Query$valueToId));
+	});
+var $author$project$QStore$Query$pure = function (a) {
+	return A2(
+		$author$project$QStore$Query$Query,
+		_List_Nil,
+		function (_v0) {
+			return $elm$core$Result$Ok(
+				_List_fromArray(
+					[a]));
+		});
+};
+var $author$project$QStore$Query$QVal = function (a) {
+	return {$: 'QVal', a: a};
+};
+var $author$project$QStore$Query$QuerySlot = F3(
+	function (a, b, c) {
+		return {$: 'QuerySlot', a: a, b: b, c: c};
+	});
+var $author$project$QStore$Core$VString = function (a) {
+	return {$: 'VString', a: a};
+};
+var $author$project$QStore$Query$string = function (s) {
+	return A3(
+		$author$project$QStore$Query$QuerySlot,
+		$author$project$QStore$Query$QVal(s),
+		$author$project$QStore$Query$QVal(
+			$author$project$QStore$Core$VString(s)),
+		function (_v0) {
+			return $elm$core$Result$Ok(
+				$elm$core$Maybe$Just(_Utils_Tuple0));
+		});
+};
+var $author$project$QStore$Query$valueToString = function (v) {
+	if (v.$ === 'VString') {
+		var s = v.a;
+		return $elm$core$Maybe$Just(s);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$QStore$Query$stringVar = $author$project$QStore$Query$Var(
+	function (n) {
+		return _Utils_Tuple2(
+			n + 1,
+			A2(
+				$author$project$QStore$Query$QueryVar,
+				A2(
+					$elm$core$String$append,
+					'x',
+					$elm$core$String$fromInt(n)),
+				$author$project$QStore$Query$valueToString));
+	});
+var $elm$core$List$concat = function (lists) {
+	return A3($elm$core$List$foldr, $elm$core$List$append, _List_Nil, lists);
+};
+var $elm$core$Maybe$map4 = F5(
+	function (func, ma, mb, mc, md) {
+		if (ma.$ === 'Nothing') {
+			return $elm$core$Maybe$Nothing;
+		} else {
+			var a = ma.a;
+			if (mb.$ === 'Nothing') {
+				return $elm$core$Maybe$Nothing;
+			} else {
+				var b = mb.a;
+				if (mc.$ === 'Nothing') {
+					return $elm$core$Maybe$Nothing;
 				} else {
-					var $temp$isOkay = isOkay,
-						$temp$list = xs;
-					isOkay = $temp$isOkay;
-					list = $temp$list;
-					continue any;
+					var c = mc.a;
+					if (md.$ === 'Nothing') {
+						return $elm$core$Maybe$Nothing;
+					} else {
+						var d = md.a;
+						return $elm$core$Maybe$Just(
+							A4(func, a, b, c, d));
+					}
 				}
 			}
 		}
 	});
-var $elm$core$Basics$not = _Basics_not;
-var $elm$core$List$all = F2(
-	function (isOkay, list) {
-		return !A2(
-			$elm$core$List$any,
-			A2($elm$core$Basics$composeL, $elm$core$Basics$not, isOkay),
-			list);
+var $elm$core$Result$map4 = F5(
+	function (func, ra, rb, rc, rd) {
+		if (ra.$ === 'Err') {
+			var x = ra.a;
+			return $elm$core$Result$Err(x);
+		} else {
+			var a = ra.a;
+			if (rb.$ === 'Err') {
+				var x = rb.a;
+				return $elm$core$Result$Err(x);
+			} else {
+				var b = rb.a;
+				if (rc.$ === 'Err') {
+					var x = rc.a;
+					return $elm$core$Result$Err(x);
+				} else {
+					var c = rc.a;
+					if (rd.$ === 'Err') {
+						var x = rd.a;
+						return $elm$core$Result$Err(x);
+					} else {
+						var d = rd.a;
+						return $elm$core$Result$Ok(
+							A4(func, a, b, c, d));
+					}
+				}
+			}
+		}
 	});
+var $author$project$QStore$Query$querySlotProc = function (_v0) {
+	var proc = _v0.c;
+	return proc;
+};
+var $author$project$QStore$Query$querySlotToQueryVal = function (_v0) {
+	var qv = _v0.a;
+	return qv;
+};
+var $author$project$QStore$Query$querySlotToQueryValValue = function (_v0) {
+	var qv = _v0.b;
+	return qv;
+};
+var $elm$core$Result$map2 = F3(
+	function (func, ra, rb) {
+		if (ra.$ === 'Err') {
+			var x = ra.a;
+			return $elm$core$Result$Err(x);
+		} else {
+			var a = ra.a;
+			if (rb.$ === 'Err') {
+				var x = rb.a;
+				return $elm$core$Result$Err(x);
+			} else {
+				var b = rb.a;
+				return $elm$core$Result$Ok(
+					A2(func, a, b));
+			}
+		}
+	});
+var $author$project$QStore$Query$sequenceResults = function (l) {
+	if (!l.b) {
+		return $elm$core$Result$Ok(_List_Nil);
+	} else {
+		var res = l.a;
+		var ress = l.b;
+		return A3(
+			$elm$core$Result$map2,
+			F2(
+				function (resOk, ressOk) {
+					return A2($elm$core$List$cons, resOk, ressOk);
+				}),
+			res,
+			$author$project$QStore$Query$sequenceResults(ress));
+	}
+};
+var $elm$core$Maybe$withDefault = F2(
+	function (_default, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return value;
+		} else {
+			return _default;
+		}
+	});
+var $author$project$QStore$Query$true = function (q) {
+	return A2(
+		$author$project$QStore$Query$Query,
+		_List_fromArray(
+			[
+				{
+				attr: $author$project$QStore$Query$querySlotToQueryVal(q.attr),
+				id: $author$project$QStore$Query$querySlotToQueryVal(q.id),
+				tx: $author$project$QStore$Query$querySlotToQueryVal(q.tx),
+				value: $author$project$QStore$Query$querySlotToQueryValValue(q.value)
+			}
+			]),
+		function (resp) {
+			return A2(
+				$elm$core$Result$map,
+				$elm$core$List$concat,
+				$author$project$QStore$Query$sequenceResults(
+					A2(
+						$elm$core$List$map,
+						function (answ) {
+							return A5(
+								$elm$core$Result$map4,
+								F4(
+									function (idM, attrM, valueM, txM) {
+										return A2(
+											$elm$core$Maybe$withDefault,
+											_List_Nil,
+											A5(
+												$elm$core$Maybe$map4,
+												F4(
+													function (x, attr, value, tx) {
+														return _List_fromArray(
+															[
+																{attr: attr, id: x, tx: tx, value: value}
+															]);
+													}),
+												idM,
+												attrM,
+												valueM,
+												txM));
+									}),
+								A2($author$project$QStore$Query$querySlotProc, q.id, answ),
+								A2($author$project$QStore$Query$querySlotProc, q.attr, answ),
+								A2($author$project$QStore$Query$querySlotProc, q.value, answ),
+								A2($author$project$QStore$Query$querySlotProc, q.tx, answ));
+						},
+						resp)));
+		});
+};
+var $author$project$QStore$Query$BadResponse = function (a) {
+	return {$: 'BadResponse', a: a};
+};
+var $author$project$QStore$Query$QVar = function (a) {
+	return {$: 'QVar', a: a};
+};
+var $elm$core$Basics$compare = _Utils_compare;
+var $elm$core$Dict$get = F2(
+	function (targetKey, dict) {
+		get:
+		while (true) {
+			if (dict.$ === 'RBEmpty_elm_builtin') {
+				return $elm$core$Maybe$Nothing;
+			} else {
+				var key = dict.b;
+				var value = dict.c;
+				var left = dict.d;
+				var right = dict.e;
+				var _v1 = A2($elm$core$Basics$compare, targetKey, key);
+				switch (_v1.$) {
+					case 'LT':
+						var $temp$targetKey = targetKey,
+							$temp$dict = left;
+						targetKey = $temp$targetKey;
+						dict = $temp$dict;
+						continue get;
+					case 'EQ':
+						return $elm$core$Maybe$Just(value);
+					default:
+						var $temp$targetKey = targetKey,
+							$temp$dict = right;
+						targetKey = $temp$targetKey;
+						dict = $temp$dict;
+						continue get;
+				}
+			}
+		}
+	});
+var $elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return $elm$core$Maybe$Just(
+				f(value));
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	});
+var $author$project$QStore$Query$var = function (_v0) {
+	var x = _v0.a;
+	var proj = _v0.b;
+	return A3(
+		$author$project$QStore$Query$QuerySlot,
+		$author$project$QStore$Query$QVar(x),
+		$author$project$QStore$Query$QVar(x),
+		function (answ) {
+			return A2(
+				$elm$core$Result$map,
+				proj,
+				A2(
+					$elm$core$Maybe$withDefault,
+					$elm$core$Result$Err(
+						$author$project$QStore$Query$BadResponse(
+							A2($elm$core$String$append, 'No value returned for variable: ', x))),
+					A2(
+						$elm$core$Maybe$map,
+						$elm$core$Result$Ok,
+						A2($elm$core$Dict$get, x, answ))));
+		});
+};
+var $author$project$QStore$Query$varApp = F2(
+	function (_v0, _v1) {
+		var av = _v0.a;
+		var fv = _v1.a;
+		return $author$project$QStore$Query$Var(
+			function (m) {
+				var _v2 = fv(m);
+				var n = _v2.a;
+				var f = _v2.b;
+				var _v3 = av(n);
+				var o = _v3.a;
+				var a = _v3.b;
+				return _Utils_Tuple2(
+					o,
+					f(a));
+			});
+	});
+var $author$project$QStore$Query$varPure = function (a) {
+	return $author$project$QStore$Query$Var(
+		function (n) {
+			return _Utils_Tuple2(n, a);
+		});
+};
+var $author$project$QStore$Query$QWildcard = {$: 'QWildcard'};
+var $author$project$QStore$Query$wildcard = A3(
+	$author$project$QStore$Query$QuerySlot,
+	$author$project$QStore$Query$QWildcard,
+	$author$project$QStore$Query$QWildcard,
+	function (_v0) {
+		return $elm$core$Result$Ok(
+			$elm$core$Maybe$Just(_Utils_Tuple0));
+	});
+var $author$project$Album$query = _Utils_Tuple2(
+	A2(
+		$author$project$QStore$Query$varApp,
+		$author$project$QStore$Query$stringVar,
+		A2(
+			$author$project$QStore$Query$varApp,
+			$author$project$QStore$Query$idVar,
+			$author$project$QStore$Query$varPure(
+				F2(
+					function (id, name) {
+						return _Utils_Tuple2(id, name);
+					})))),
+	function (_v0) {
+		var id = _v0.a;
+		var name = _v0.b;
+		return A2(
+			$author$project$QStore$Query$app,
+			$author$project$QStore$Query$true(
+				{
+					attr: $author$project$QStore$Query$string('name'),
+					id: $author$project$QStore$Query$var(id),
+					tx: $author$project$QStore$Query$wildcard,
+					value: $author$project$QStore$Query$var(name)
+				}),
+			A2(
+				$author$project$QStore$Query$app,
+				$author$project$QStore$Query$true(
+					{
+						attr: $author$project$QStore$Query$string('is'),
+						id: $author$project$QStore$Query$var(id),
+						tx: $author$project$QStore$Query$wildcard,
+						value: $author$project$QStore$Query$string('album')
+					}),
+				$author$project$QStore$Query$pure(
+					F2(
+						function (a, b) {
+							return {id: a.id, name: b.value};
+						}))));
+	});
+var $author$project$QStore$Query$NetworkError = function (a) {
+	return {$: 'NetworkError', a: a};
+};
+var $elm$http$Http$BadBody = function (a) {
+	return {$: 'BadBody', a: a};
+};
+var $elm$core$Result$andThen = F2(
+	function (callback, result) {
+		if (result.$ === 'Ok') {
+			var value = result.a;
+			return callback(value);
+		} else {
+			var msg = result.a;
+			return $elm$core$Result$Err(msg);
+		}
+	});
+var $elm$http$Http$BadStatus_ = F2(
+	function (a, b) {
+		return {$: 'BadStatus_', a: a, b: b};
+	});
+var $elm$http$Http$BadUrl_ = function (a) {
+	return {$: 'BadUrl_', a: a};
+};
+var $elm$http$Http$GoodStatus_ = F2(
+	function (a, b) {
+		return {$: 'GoodStatus_', a: a, b: b};
+	});
+var $elm$http$Http$NetworkError_ = {$: 'NetworkError_'};
+var $elm$http$Http$Receiving = function (a) {
+	return {$: 'Receiving', a: a};
+};
+var $elm$http$Http$Sending = function (a) {
+	return {$: 'Sending', a: a};
+};
+var $elm$http$Http$Timeout_ = {$: 'Timeout_'};
+var $elm$core$Dict$RBEmpty_elm_builtin = {$: 'RBEmpty_elm_builtin'};
+var $elm$core$Dict$empty = $elm$core$Dict$RBEmpty_elm_builtin;
+var $elm$core$Maybe$isJust = function (maybe) {
+	if (maybe.$ === 'Just') {
+		return true;
+	} else {
+		return false;
+	}
+};
+var $elm$core$Platform$sendToSelf = _Platform_sendToSelf;
 var $elm$core$Dict$Black = {$: 'Black'};
 var $elm$core$Dict$RBNode_elm_builtin = F5(
 	function (a, b, c, d, e) {
 		return {$: 'RBNode_elm_builtin', a: a, b: b, c: c, d: d, e: e};
 	});
-var $elm$core$Dict$RBEmpty_elm_builtin = {$: 'RBEmpty_elm_builtin'};
 var $elm$core$Dict$Red = {$: 'Red'};
 var $elm$core$Dict$balance = F5(
 	function (color, key, value, left, right) {
@@ -5654,7 +6073,6 @@ var $elm$core$Dict$balance = F5(
 			}
 		}
 	});
-var $elm$core$Basics$compare = _Utils_compare;
 var $elm$core$Dict$insertHelp = F3(
 	function (key, value, dict) {
 		if (dict.$ === 'RBEmpty_elm_builtin') {
@@ -5703,15 +6121,3364 @@ var $elm$core$Dict$insert = F3(
 			return x;
 		}
 	});
+var $elm$core$Dict$getMin = function (dict) {
+	getMin:
+	while (true) {
+		if ((dict.$ === 'RBNode_elm_builtin') && (dict.d.$ === 'RBNode_elm_builtin')) {
+			var left = dict.d;
+			var $temp$dict = left;
+			dict = $temp$dict;
+			continue getMin;
+		} else {
+			return dict;
+		}
+	}
+};
+var $elm$core$Dict$moveRedLeft = function (dict) {
+	if (((dict.$ === 'RBNode_elm_builtin') && (dict.d.$ === 'RBNode_elm_builtin')) && (dict.e.$ === 'RBNode_elm_builtin')) {
+		if ((dict.e.d.$ === 'RBNode_elm_builtin') && (dict.e.d.a.$ === 'Red')) {
+			var clr = dict.a;
+			var k = dict.b;
+			var v = dict.c;
+			var _v1 = dict.d;
+			var lClr = _v1.a;
+			var lK = _v1.b;
+			var lV = _v1.c;
+			var lLeft = _v1.d;
+			var lRight = _v1.e;
+			var _v2 = dict.e;
+			var rClr = _v2.a;
+			var rK = _v2.b;
+			var rV = _v2.c;
+			var rLeft = _v2.d;
+			var _v3 = rLeft.a;
+			var rlK = rLeft.b;
+			var rlV = rLeft.c;
+			var rlL = rLeft.d;
+			var rlR = rLeft.e;
+			var rRight = _v2.e;
+			return A5(
+				$elm$core$Dict$RBNode_elm_builtin,
+				$elm$core$Dict$Red,
+				rlK,
+				rlV,
+				A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Black,
+					k,
+					v,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
+					rlL),
+				A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, rK, rV, rlR, rRight));
+		} else {
+			var clr = dict.a;
+			var k = dict.b;
+			var v = dict.c;
+			var _v4 = dict.d;
+			var lClr = _v4.a;
+			var lK = _v4.b;
+			var lV = _v4.c;
+			var lLeft = _v4.d;
+			var lRight = _v4.e;
+			var _v5 = dict.e;
+			var rClr = _v5.a;
+			var rK = _v5.b;
+			var rV = _v5.c;
+			var rLeft = _v5.d;
+			var rRight = _v5.e;
+			if (clr.$ === 'Black') {
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Black,
+					k,
+					v,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight));
+			} else {
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Black,
+					k,
+					v,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight));
+			}
+		}
+	} else {
+		return dict;
+	}
+};
+var $elm$core$Dict$moveRedRight = function (dict) {
+	if (((dict.$ === 'RBNode_elm_builtin') && (dict.d.$ === 'RBNode_elm_builtin')) && (dict.e.$ === 'RBNode_elm_builtin')) {
+		if ((dict.d.d.$ === 'RBNode_elm_builtin') && (dict.d.d.a.$ === 'Red')) {
+			var clr = dict.a;
+			var k = dict.b;
+			var v = dict.c;
+			var _v1 = dict.d;
+			var lClr = _v1.a;
+			var lK = _v1.b;
+			var lV = _v1.c;
+			var _v2 = _v1.d;
+			var _v3 = _v2.a;
+			var llK = _v2.b;
+			var llV = _v2.c;
+			var llLeft = _v2.d;
+			var llRight = _v2.e;
+			var lRight = _v1.e;
+			var _v4 = dict.e;
+			var rClr = _v4.a;
+			var rK = _v4.b;
+			var rV = _v4.c;
+			var rLeft = _v4.d;
+			var rRight = _v4.e;
+			return A5(
+				$elm$core$Dict$RBNode_elm_builtin,
+				$elm$core$Dict$Red,
+				lK,
+				lV,
+				A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, llK, llV, llLeft, llRight),
+				A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Black,
+					k,
+					v,
+					lRight,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight)));
+		} else {
+			var clr = dict.a;
+			var k = dict.b;
+			var v = dict.c;
+			var _v5 = dict.d;
+			var lClr = _v5.a;
+			var lK = _v5.b;
+			var lV = _v5.c;
+			var lLeft = _v5.d;
+			var lRight = _v5.e;
+			var _v6 = dict.e;
+			var rClr = _v6.a;
+			var rK = _v6.b;
+			var rV = _v6.c;
+			var rLeft = _v6.d;
+			var rRight = _v6.e;
+			if (clr.$ === 'Black') {
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Black,
+					k,
+					v,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight));
+			} else {
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Black,
+					k,
+					v,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight));
+			}
+		}
+	} else {
+		return dict;
+	}
+};
+var $elm$core$Dict$removeHelpPrepEQGT = F7(
+	function (targetKey, dict, color, key, value, left, right) {
+		if ((left.$ === 'RBNode_elm_builtin') && (left.a.$ === 'Red')) {
+			var _v1 = left.a;
+			var lK = left.b;
+			var lV = left.c;
+			var lLeft = left.d;
+			var lRight = left.e;
+			return A5(
+				$elm$core$Dict$RBNode_elm_builtin,
+				color,
+				lK,
+				lV,
+				lLeft,
+				A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, key, value, lRight, right));
+		} else {
+			_v2$2:
+			while (true) {
+				if ((right.$ === 'RBNode_elm_builtin') && (right.a.$ === 'Black')) {
+					if (right.d.$ === 'RBNode_elm_builtin') {
+						if (right.d.a.$ === 'Black') {
+							var _v3 = right.a;
+							var _v4 = right.d;
+							var _v5 = _v4.a;
+							return $elm$core$Dict$moveRedRight(dict);
+						} else {
+							break _v2$2;
+						}
+					} else {
+						var _v6 = right.a;
+						var _v7 = right.d;
+						return $elm$core$Dict$moveRedRight(dict);
+					}
+				} else {
+					break _v2$2;
+				}
+			}
+			return dict;
+		}
+	});
+var $elm$core$Dict$removeMin = function (dict) {
+	if ((dict.$ === 'RBNode_elm_builtin') && (dict.d.$ === 'RBNode_elm_builtin')) {
+		var color = dict.a;
+		var key = dict.b;
+		var value = dict.c;
+		var left = dict.d;
+		var lColor = left.a;
+		var lLeft = left.d;
+		var right = dict.e;
+		if (lColor.$ === 'Black') {
+			if ((lLeft.$ === 'RBNode_elm_builtin') && (lLeft.a.$ === 'Red')) {
+				var _v3 = lLeft.a;
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					color,
+					key,
+					value,
+					$elm$core$Dict$removeMin(left),
+					right);
+			} else {
+				var _v4 = $elm$core$Dict$moveRedLeft(dict);
+				if (_v4.$ === 'RBNode_elm_builtin') {
+					var nColor = _v4.a;
+					var nKey = _v4.b;
+					var nValue = _v4.c;
+					var nLeft = _v4.d;
+					var nRight = _v4.e;
+					return A5(
+						$elm$core$Dict$balance,
+						nColor,
+						nKey,
+						nValue,
+						$elm$core$Dict$removeMin(nLeft),
+						nRight);
+				} else {
+					return $elm$core$Dict$RBEmpty_elm_builtin;
+				}
+			}
+		} else {
+			return A5(
+				$elm$core$Dict$RBNode_elm_builtin,
+				color,
+				key,
+				value,
+				$elm$core$Dict$removeMin(left),
+				right);
+		}
+	} else {
+		return $elm$core$Dict$RBEmpty_elm_builtin;
+	}
+};
+var $elm$core$Dict$removeHelp = F2(
+	function (targetKey, dict) {
+		if (dict.$ === 'RBEmpty_elm_builtin') {
+			return $elm$core$Dict$RBEmpty_elm_builtin;
+		} else {
+			var color = dict.a;
+			var key = dict.b;
+			var value = dict.c;
+			var left = dict.d;
+			var right = dict.e;
+			if (_Utils_cmp(targetKey, key) < 0) {
+				if ((left.$ === 'RBNode_elm_builtin') && (left.a.$ === 'Black')) {
+					var _v4 = left.a;
+					var lLeft = left.d;
+					if ((lLeft.$ === 'RBNode_elm_builtin') && (lLeft.a.$ === 'Red')) {
+						var _v6 = lLeft.a;
+						return A5(
+							$elm$core$Dict$RBNode_elm_builtin,
+							color,
+							key,
+							value,
+							A2($elm$core$Dict$removeHelp, targetKey, left),
+							right);
+					} else {
+						var _v7 = $elm$core$Dict$moveRedLeft(dict);
+						if (_v7.$ === 'RBNode_elm_builtin') {
+							var nColor = _v7.a;
+							var nKey = _v7.b;
+							var nValue = _v7.c;
+							var nLeft = _v7.d;
+							var nRight = _v7.e;
+							return A5(
+								$elm$core$Dict$balance,
+								nColor,
+								nKey,
+								nValue,
+								A2($elm$core$Dict$removeHelp, targetKey, nLeft),
+								nRight);
+						} else {
+							return $elm$core$Dict$RBEmpty_elm_builtin;
+						}
+					}
+				} else {
+					return A5(
+						$elm$core$Dict$RBNode_elm_builtin,
+						color,
+						key,
+						value,
+						A2($elm$core$Dict$removeHelp, targetKey, left),
+						right);
+				}
+			} else {
+				return A2(
+					$elm$core$Dict$removeHelpEQGT,
+					targetKey,
+					A7($elm$core$Dict$removeHelpPrepEQGT, targetKey, dict, color, key, value, left, right));
+			}
+		}
+	});
+var $elm$core$Dict$removeHelpEQGT = F2(
+	function (targetKey, dict) {
+		if (dict.$ === 'RBNode_elm_builtin') {
+			var color = dict.a;
+			var key = dict.b;
+			var value = dict.c;
+			var left = dict.d;
+			var right = dict.e;
+			if (_Utils_eq(targetKey, key)) {
+				var _v1 = $elm$core$Dict$getMin(right);
+				if (_v1.$ === 'RBNode_elm_builtin') {
+					var minKey = _v1.b;
+					var minValue = _v1.c;
+					return A5(
+						$elm$core$Dict$balance,
+						color,
+						minKey,
+						minValue,
+						left,
+						$elm$core$Dict$removeMin(right));
+				} else {
+					return $elm$core$Dict$RBEmpty_elm_builtin;
+				}
+			} else {
+				return A5(
+					$elm$core$Dict$balance,
+					color,
+					key,
+					value,
+					left,
+					A2($elm$core$Dict$removeHelp, targetKey, right));
+			}
+		} else {
+			return $elm$core$Dict$RBEmpty_elm_builtin;
+		}
+	});
+var $elm$core$Dict$remove = F2(
+	function (key, dict) {
+		var _v0 = A2($elm$core$Dict$removeHelp, key, dict);
+		if ((_v0.$ === 'RBNode_elm_builtin') && (_v0.a.$ === 'Red')) {
+			var _v1 = _v0.a;
+			var k = _v0.b;
+			var v = _v0.c;
+			var l = _v0.d;
+			var r = _v0.e;
+			return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, k, v, l, r);
+		} else {
+			var x = _v0;
+			return x;
+		}
+	});
+var $elm$core$Dict$update = F3(
+	function (targetKey, alter, dictionary) {
+		var _v0 = alter(
+			A2($elm$core$Dict$get, targetKey, dictionary));
+		if (_v0.$ === 'Just') {
+			var value = _v0.a;
+			return A3($elm$core$Dict$insert, targetKey, value, dictionary);
+		} else {
+			return A2($elm$core$Dict$remove, targetKey, dictionary);
+		}
+	});
+var $elm$core$Basics$composeR = F3(
+	function (f, g, x) {
+		return g(
+			f(x));
+	});
+var $elm$http$Http$expectStringResponse = F2(
+	function (toMsg, toResult) {
+		return A3(
+			_Http_expect,
+			'',
+			$elm$core$Basics$identity,
+			A2($elm$core$Basics$composeR, toResult, toMsg));
+	});
+var $elm$http$Http$BadStatus = function (a) {
+	return {$: 'BadStatus', a: a};
+};
+var $elm$http$Http$BadUrl = function (a) {
+	return {$: 'BadUrl', a: a};
+};
+var $elm$http$Http$NetworkError = {$: 'NetworkError'};
+var $elm$http$Http$Timeout = {$: 'Timeout'};
+var $elm$core$Result$mapError = F2(
+	function (f, result) {
+		if (result.$ === 'Ok') {
+			var v = result.a;
+			return $elm$core$Result$Ok(v);
+		} else {
+			var e = result.a;
+			return $elm$core$Result$Err(
+				f(e));
+		}
+	});
+var $elm$http$Http$resolve = F2(
+	function (toResult, response) {
+		switch (response.$) {
+			case 'BadUrl_':
+				var url = response.a;
+				return $elm$core$Result$Err(
+					$elm$http$Http$BadUrl(url));
+			case 'Timeout_':
+				return $elm$core$Result$Err($elm$http$Http$Timeout);
+			case 'NetworkError_':
+				return $elm$core$Result$Err($elm$http$Http$NetworkError);
+			case 'BadStatus_':
+				var metadata = response.a;
+				return $elm$core$Result$Err(
+					$elm$http$Http$BadStatus(metadata.statusCode));
+			default:
+				var body = response.b;
+				return A2(
+					$elm$core$Result$mapError,
+					$elm$http$Http$BadBody,
+					toResult(body));
+		}
+	});
+var $elm$http$Http$expectString = function (toMsg) {
+	return A2(
+		$elm$http$Http$expectStringResponse,
+		toMsg,
+		$elm$http$Http$resolve($elm$core$Result$Ok));
+};
+var $elm$parser$Parser$DeadEnd = F3(
+	function (row, col, problem) {
+		return {col: col, problem: problem, row: row};
+	});
+var $elm$parser$Parser$problemToDeadEnd = function (p) {
+	return A3($elm$parser$Parser$DeadEnd, p.row, p.col, p.problem);
+};
+var $elm$parser$Parser$Advanced$bagToList = F2(
+	function (bag, list) {
+		bagToList:
+		while (true) {
+			switch (bag.$) {
+				case 'Empty':
+					return list;
+				case 'AddRight':
+					var bag1 = bag.a;
+					var x = bag.b;
+					var $temp$bag = bag1,
+						$temp$list = A2($elm$core$List$cons, x, list);
+					bag = $temp$bag;
+					list = $temp$list;
+					continue bagToList;
+				default:
+					var bag1 = bag.a;
+					var bag2 = bag.b;
+					var $temp$bag = bag1,
+						$temp$list = A2($elm$parser$Parser$Advanced$bagToList, bag2, list);
+					bag = $temp$bag;
+					list = $temp$list;
+					continue bagToList;
+			}
+		}
+	});
+var $elm$parser$Parser$Advanced$run = F2(
+	function (_v0, src) {
+		var parse = _v0.a;
+		var _v1 = parse(
+			{col: 1, context: _List_Nil, indent: 1, offset: 0, row: 1, src: src});
+		if (_v1.$ === 'Good') {
+			var value = _v1.b;
+			return $elm$core$Result$Ok(value);
+		} else {
+			var bag = _v1.b;
+			return $elm$core$Result$Err(
+				A2($elm$parser$Parser$Advanced$bagToList, bag, _List_Nil));
+		}
+	});
+var $elm$parser$Parser$run = F2(
+	function (parser, source) {
+		var _v0 = A2($elm$parser$Parser$Advanced$run, parser, source);
+		if (_v0.$ === 'Ok') {
+			var a = _v0.a;
+			return $elm$core$Result$Ok(a);
+		} else {
+			var problems = _v0.a;
+			return $elm$core$Result$Err(
+				A2($elm$core$List$map, $elm$parser$Parser$problemToDeadEnd, problems));
+		}
+	});
+var $author$project$Sexpr$Bool = function (a) {
+	return {$: 'Bool', a: a};
+};
+var $elm$parser$Parser$Forbidden = {$: 'Forbidden'};
+var $author$project$Sexpr$Int = function (a) {
+	return {$: 'Int', a: a};
+};
+var $author$project$Sexpr$List = function (a) {
+	return {$: 'List', a: a};
+};
+var $author$project$Sexpr$Symbol = function (a) {
+	return {$: 'Symbol', a: a};
+};
+var $elm$core$Set$Set_elm_builtin = function (a) {
+	return {$: 'Set_elm_builtin', a: a};
+};
+var $elm$core$Set$empty = $elm$core$Set$Set_elm_builtin($elm$core$Dict$empty);
+var $elm$core$Set$insert = F2(
+	function (key, _v0) {
+		var dict = _v0.a;
+		return $elm$core$Set$Set_elm_builtin(
+			A3($elm$core$Dict$insert, key, _Utils_Tuple0, dict));
+	});
+var $elm$core$Set$fromList = function (list) {
+	return A3($elm$core$List$foldl, $elm$core$Set$insert, $elm$core$Set$empty, list);
+};
+var $elm$core$Basics$always = F2(
+	function (a, _v0) {
+		return a;
+	});
+var $elm$parser$Parser$Advanced$Bad = F2(
+	function (a, b) {
+		return {$: 'Bad', a: a, b: b};
+	});
+var $elm$parser$Parser$Advanced$Good = F3(
+	function (a, b, c) {
+		return {$: 'Good', a: a, b: b, c: c};
+	});
+var $elm$parser$Parser$Advanced$Parser = function (a) {
+	return {$: 'Parser', a: a};
+};
+var $elm$parser$Parser$Advanced$map2 = F3(
+	function (func, _v0, _v1) {
+		var parseA = _v0.a;
+		var parseB = _v1.a;
+		return $elm$parser$Parser$Advanced$Parser(
+			function (s0) {
+				var _v2 = parseA(s0);
+				if (_v2.$ === 'Bad') {
+					var p = _v2.a;
+					var x = _v2.b;
+					return A2($elm$parser$Parser$Advanced$Bad, p, x);
+				} else {
+					var p1 = _v2.a;
+					var a = _v2.b;
+					var s1 = _v2.c;
+					var _v3 = parseB(s1);
+					if (_v3.$ === 'Bad') {
+						var p2 = _v3.a;
+						var x = _v3.b;
+						return A2($elm$parser$Parser$Advanced$Bad, p1 || p2, x);
+					} else {
+						var p2 = _v3.a;
+						var b = _v3.b;
+						var s2 = _v3.c;
+						return A3(
+							$elm$parser$Parser$Advanced$Good,
+							p1 || p2,
+							A2(func, a, b),
+							s2);
+					}
+				}
+			});
+	});
+var $elm$parser$Parser$Advanced$ignorer = F2(
+	function (keepParser, ignoreParser) {
+		return A3($elm$parser$Parser$Advanced$map2, $elm$core$Basics$always, keepParser, ignoreParser);
+	});
+var $elm$parser$Parser$ignorer = $elm$parser$Parser$Advanced$ignorer;
+var $elm$parser$Parser$ExpectingInt = {$: 'ExpectingInt'};
+var $elm$parser$Parser$Advanced$consumeBase = _Parser_consumeBase;
+var $elm$parser$Parser$Advanced$consumeBase16 = _Parser_consumeBase16;
+var $elm$parser$Parser$Advanced$bumpOffset = F2(
+	function (newOffset, s) {
+		return {col: s.col + (newOffset - s.offset), context: s.context, indent: s.indent, offset: newOffset, row: s.row, src: s.src};
+	});
+var $elm$parser$Parser$Advanced$chompBase10 = _Parser_chompBase10;
+var $elm$parser$Parser$Advanced$isAsciiCode = _Parser_isAsciiCode;
+var $elm$core$Basics$negate = function (n) {
+	return -n;
+};
+var $elm$parser$Parser$Advanced$consumeExp = F2(
+	function (offset, src) {
+		if (A3($elm$parser$Parser$Advanced$isAsciiCode, 101, offset, src) || A3($elm$parser$Parser$Advanced$isAsciiCode, 69, offset, src)) {
+			var eOffset = offset + 1;
+			var expOffset = (A3($elm$parser$Parser$Advanced$isAsciiCode, 43, eOffset, src) || A3($elm$parser$Parser$Advanced$isAsciiCode, 45, eOffset, src)) ? (eOffset + 1) : eOffset;
+			var newOffset = A2($elm$parser$Parser$Advanced$chompBase10, expOffset, src);
+			return _Utils_eq(expOffset, newOffset) ? (-newOffset) : newOffset;
+		} else {
+			return offset;
+		}
+	});
+var $elm$parser$Parser$Advanced$consumeDotAndExp = F2(
+	function (offset, src) {
+		return A3($elm$parser$Parser$Advanced$isAsciiCode, 46, offset, src) ? A2(
+			$elm$parser$Parser$Advanced$consumeExp,
+			A2($elm$parser$Parser$Advanced$chompBase10, offset + 1, src),
+			src) : A2($elm$parser$Parser$Advanced$consumeExp, offset, src);
+	});
+var $elm$parser$Parser$Advanced$AddRight = F2(
+	function (a, b) {
+		return {$: 'AddRight', a: a, b: b};
+	});
+var $elm$parser$Parser$Advanced$DeadEnd = F4(
+	function (row, col, problem, contextStack) {
+		return {col: col, contextStack: contextStack, problem: problem, row: row};
+	});
+var $elm$parser$Parser$Advanced$Empty = {$: 'Empty'};
+var $elm$parser$Parser$Advanced$fromState = F2(
+	function (s, x) {
+		return A2(
+			$elm$parser$Parser$Advanced$AddRight,
+			$elm$parser$Parser$Advanced$Empty,
+			A4($elm$parser$Parser$Advanced$DeadEnd, s.row, s.col, x, s.context));
+	});
+var $elm$parser$Parser$Advanced$finalizeInt = F5(
+	function (invalid, handler, startOffset, _v0, s) {
+		var endOffset = _v0.a;
+		var n = _v0.b;
+		if (handler.$ === 'Err') {
+			var x = handler.a;
+			return A2(
+				$elm$parser$Parser$Advanced$Bad,
+				true,
+				A2($elm$parser$Parser$Advanced$fromState, s, x));
+		} else {
+			var toValue = handler.a;
+			return _Utils_eq(startOffset, endOffset) ? A2(
+				$elm$parser$Parser$Advanced$Bad,
+				_Utils_cmp(s.offset, startOffset) < 0,
+				A2($elm$parser$Parser$Advanced$fromState, s, invalid)) : A3(
+				$elm$parser$Parser$Advanced$Good,
+				true,
+				toValue(n),
+				A2($elm$parser$Parser$Advanced$bumpOffset, endOffset, s));
+		}
+	});
+var $elm$parser$Parser$Advanced$fromInfo = F4(
+	function (row, col, x, context) {
+		return A2(
+			$elm$parser$Parser$Advanced$AddRight,
+			$elm$parser$Parser$Advanced$Empty,
+			A4($elm$parser$Parser$Advanced$DeadEnd, row, col, x, context));
+	});
+var $elm$core$String$toFloat = _String_toFloat;
+var $elm$parser$Parser$Advanced$finalizeFloat = F6(
+	function (invalid, expecting, intSettings, floatSettings, intPair, s) {
+		var intOffset = intPair.a;
+		var floatOffset = A2($elm$parser$Parser$Advanced$consumeDotAndExp, intOffset, s.src);
+		if (floatOffset < 0) {
+			return A2(
+				$elm$parser$Parser$Advanced$Bad,
+				true,
+				A4($elm$parser$Parser$Advanced$fromInfo, s.row, s.col - (floatOffset + s.offset), invalid, s.context));
+		} else {
+			if (_Utils_eq(s.offset, floatOffset)) {
+				return A2(
+					$elm$parser$Parser$Advanced$Bad,
+					false,
+					A2($elm$parser$Parser$Advanced$fromState, s, expecting));
+			} else {
+				if (_Utils_eq(intOffset, floatOffset)) {
+					return A5($elm$parser$Parser$Advanced$finalizeInt, invalid, intSettings, s.offset, intPair, s);
+				} else {
+					if (floatSettings.$ === 'Err') {
+						var x = floatSettings.a;
+						return A2(
+							$elm$parser$Parser$Advanced$Bad,
+							true,
+							A2($elm$parser$Parser$Advanced$fromState, s, invalid));
+					} else {
+						var toValue = floatSettings.a;
+						var _v1 = $elm$core$String$toFloat(
+							A3($elm$core$String$slice, s.offset, floatOffset, s.src));
+						if (_v1.$ === 'Nothing') {
+							return A2(
+								$elm$parser$Parser$Advanced$Bad,
+								true,
+								A2($elm$parser$Parser$Advanced$fromState, s, invalid));
+						} else {
+							var n = _v1.a;
+							return A3(
+								$elm$parser$Parser$Advanced$Good,
+								true,
+								toValue(n),
+								A2($elm$parser$Parser$Advanced$bumpOffset, floatOffset, s));
+						}
+					}
+				}
+			}
+		}
+	});
+var $elm$parser$Parser$Advanced$number = function (c) {
+	return $elm$parser$Parser$Advanced$Parser(
+		function (s) {
+			if (A3($elm$parser$Parser$Advanced$isAsciiCode, 48, s.offset, s.src)) {
+				var zeroOffset = s.offset + 1;
+				var baseOffset = zeroOffset + 1;
+				return A3($elm$parser$Parser$Advanced$isAsciiCode, 120, zeroOffset, s.src) ? A5(
+					$elm$parser$Parser$Advanced$finalizeInt,
+					c.invalid,
+					c.hex,
+					baseOffset,
+					A2($elm$parser$Parser$Advanced$consumeBase16, baseOffset, s.src),
+					s) : (A3($elm$parser$Parser$Advanced$isAsciiCode, 111, zeroOffset, s.src) ? A5(
+					$elm$parser$Parser$Advanced$finalizeInt,
+					c.invalid,
+					c.octal,
+					baseOffset,
+					A3($elm$parser$Parser$Advanced$consumeBase, 8, baseOffset, s.src),
+					s) : (A3($elm$parser$Parser$Advanced$isAsciiCode, 98, zeroOffset, s.src) ? A5(
+					$elm$parser$Parser$Advanced$finalizeInt,
+					c.invalid,
+					c.binary,
+					baseOffset,
+					A3($elm$parser$Parser$Advanced$consumeBase, 2, baseOffset, s.src),
+					s) : A6(
+					$elm$parser$Parser$Advanced$finalizeFloat,
+					c.invalid,
+					c.expecting,
+					c._int,
+					c._float,
+					_Utils_Tuple2(zeroOffset, 0),
+					s)));
+			} else {
+				return A6(
+					$elm$parser$Parser$Advanced$finalizeFloat,
+					c.invalid,
+					c.expecting,
+					c._int,
+					c._float,
+					A3($elm$parser$Parser$Advanced$consumeBase, 10, s.offset, s.src),
+					s);
+			}
+		});
+};
+var $elm$parser$Parser$Advanced$int = F2(
+	function (expecting, invalid) {
+		return $elm$parser$Parser$Advanced$number(
+			{
+				binary: $elm$core$Result$Err(invalid),
+				expecting: expecting,
+				_float: $elm$core$Result$Err(invalid),
+				hex: $elm$core$Result$Err(invalid),
+				_int: $elm$core$Result$Ok($elm$core$Basics$identity),
+				invalid: invalid,
+				octal: $elm$core$Result$Err(invalid)
+			});
+	});
+var $elm$parser$Parser$int = A2($elm$parser$Parser$Advanced$int, $elm$parser$Parser$ExpectingInt, $elm$parser$Parser$ExpectingInt);
+var $elm$core$Dict$member = F2(
+	function (key, dict) {
+		var _v0 = A2($elm$core$Dict$get, key, dict);
+		if (_v0.$ === 'Just') {
+			return true;
+		} else {
+			return false;
+		}
+	});
+var $elm$core$Set$member = F2(
+	function (key, _v0) {
+		var dict = _v0.a;
+		return A2($elm$core$Dict$member, key, dict);
+	});
+var $elm$core$Basics$not = _Basics_not;
+var $author$project$Sexpr$isSymbol = function (c) {
+	return !A2(
+		$elm$core$Set$member,
+		c,
+		$elm$core$Set$fromList(
+			_List_fromArray(
+				[
+					_Utils_chr(' '),
+					_Utils_chr('\n'),
+					_Utils_chr('\r'),
+					_Utils_chr('('),
+					_Utils_chr(')'),
+					_Utils_chr('\"')
+				])));
+};
+var $elm$parser$Parser$Advanced$lazy = function (thunk) {
+	return $elm$parser$Parser$Advanced$Parser(
+		function (s) {
+			var _v0 = thunk(_Utils_Tuple0);
+			var parse = _v0.a;
+			return parse(s);
+		});
+};
+var $elm$parser$Parser$lazy = $elm$parser$Parser$Advanced$lazy;
+var $elm$parser$Parser$Advanced$map = F2(
+	function (func, _v0) {
+		var parse = _v0.a;
+		return $elm$parser$Parser$Advanced$Parser(
+			function (s0) {
+				var _v1 = parse(s0);
+				if (_v1.$ === 'Good') {
+					var p = _v1.a;
+					var a = _v1.b;
+					var s1 = _v1.c;
+					return A3(
+						$elm$parser$Parser$Advanced$Good,
+						p,
+						func(a),
+						s1);
+				} else {
+					var p = _v1.a;
+					var x = _v1.b;
+					return A2($elm$parser$Parser$Advanced$Bad, p, x);
+				}
+			});
+	});
+var $elm$parser$Parser$map = $elm$parser$Parser$Advanced$map;
+var $elm$parser$Parser$Advanced$Append = F2(
+	function (a, b) {
+		return {$: 'Append', a: a, b: b};
+	});
+var $elm$parser$Parser$Advanced$oneOfHelp = F3(
+	function (s0, bag, parsers) {
+		oneOfHelp:
+		while (true) {
+			if (!parsers.b) {
+				return A2($elm$parser$Parser$Advanced$Bad, false, bag);
+			} else {
+				var parse = parsers.a.a;
+				var remainingParsers = parsers.b;
+				var _v1 = parse(s0);
+				if (_v1.$ === 'Good') {
+					var step = _v1;
+					return step;
+				} else {
+					var step = _v1;
+					var p = step.a;
+					var x = step.b;
+					if (p) {
+						return step;
+					} else {
+						var $temp$s0 = s0,
+							$temp$bag = A2($elm$parser$Parser$Advanced$Append, bag, x),
+							$temp$parsers = remainingParsers;
+						s0 = $temp$s0;
+						bag = $temp$bag;
+						parsers = $temp$parsers;
+						continue oneOfHelp;
+					}
+				}
+			}
+		}
+	});
+var $elm$parser$Parser$Advanced$oneOf = function (parsers) {
+	return $elm$parser$Parser$Advanced$Parser(
+		function (s) {
+			return A3($elm$parser$Parser$Advanced$oneOfHelp, s, $elm$parser$Parser$Advanced$Empty, parsers);
+		});
+};
+var $elm$parser$Parser$oneOf = $elm$parser$Parser$Advanced$oneOf;
+var $elm$parser$Parser$Advanced$andThen = F2(
+	function (callback, _v0) {
+		var parseA = _v0.a;
+		return $elm$parser$Parser$Advanced$Parser(
+			function (s0) {
+				var _v1 = parseA(s0);
+				if (_v1.$ === 'Bad') {
+					var p = _v1.a;
+					var x = _v1.b;
+					return A2($elm$parser$Parser$Advanced$Bad, p, x);
+				} else {
+					var p1 = _v1.a;
+					var a = _v1.b;
+					var s1 = _v1.c;
+					var _v2 = callback(a);
+					var parseB = _v2.a;
+					var _v3 = parseB(s1);
+					if (_v3.$ === 'Bad') {
+						var p2 = _v3.a;
+						var x = _v3.b;
+						return A2($elm$parser$Parser$Advanced$Bad, p1 || p2, x);
+					} else {
+						var p2 = _v3.a;
+						var b = _v3.b;
+						var s2 = _v3.c;
+						return A3($elm$parser$Parser$Advanced$Good, p1 || p2, b, s2);
+					}
+				}
+			});
+	});
+var $elm$parser$Parser$Advanced$loopHelp = F4(
+	function (p, state, callback, s0) {
+		loopHelp:
+		while (true) {
+			var _v0 = callback(state);
+			var parse = _v0.a;
+			var _v1 = parse(s0);
+			if (_v1.$ === 'Good') {
+				var p1 = _v1.a;
+				var step = _v1.b;
+				var s1 = _v1.c;
+				if (step.$ === 'Loop') {
+					var newState = step.a;
+					var $temp$p = p || p1,
+						$temp$state = newState,
+						$temp$callback = callback,
+						$temp$s0 = s1;
+					p = $temp$p;
+					state = $temp$state;
+					callback = $temp$callback;
+					s0 = $temp$s0;
+					continue loopHelp;
+				} else {
+					var result = step.a;
+					return A3($elm$parser$Parser$Advanced$Good, p || p1, result, s1);
+				}
+			} else {
+				var p1 = _v1.a;
+				var x = _v1.b;
+				return A2($elm$parser$Parser$Advanced$Bad, p || p1, x);
+			}
+		}
+	});
+var $elm$parser$Parser$Advanced$loop = F2(
+	function (state, callback) {
+		return $elm$parser$Parser$Advanced$Parser(
+			function (s) {
+				return A4($elm$parser$Parser$Advanced$loopHelp, false, state, callback, s);
+			});
+	});
+var $elm$parser$Parser$Advanced$Done = function (a) {
+	return {$: 'Done', a: a};
+};
+var $elm$parser$Parser$Advanced$Loop = function (a) {
+	return {$: 'Loop', a: a};
+};
+var $elm$parser$Parser$Advanced$revAlways = F2(
+	function (_v0, b) {
+		return b;
+	});
+var $elm$parser$Parser$Advanced$skip = F2(
+	function (iParser, kParser) {
+		return A3($elm$parser$Parser$Advanced$map2, $elm$parser$Parser$Advanced$revAlways, iParser, kParser);
+	});
+var $elm$parser$Parser$Advanced$sequenceEndForbidden = F5(
+	function (ender, ws, parseItem, sep, revItems) {
+		var chompRest = function (item) {
+			return A5(
+				$elm$parser$Parser$Advanced$sequenceEndForbidden,
+				ender,
+				ws,
+				parseItem,
+				sep,
+				A2($elm$core$List$cons, item, revItems));
+		};
+		return A2(
+			$elm$parser$Parser$Advanced$skip,
+			ws,
+			$elm$parser$Parser$Advanced$oneOf(
+				_List_fromArray(
+					[
+						A2(
+						$elm$parser$Parser$Advanced$skip,
+						sep,
+						A2(
+							$elm$parser$Parser$Advanced$skip,
+							ws,
+							A2(
+								$elm$parser$Parser$Advanced$map,
+								function (item) {
+									return $elm$parser$Parser$Advanced$Loop(
+										A2($elm$core$List$cons, item, revItems));
+								},
+								parseItem))),
+						A2(
+						$elm$parser$Parser$Advanced$map,
+						function (_v0) {
+							return $elm$parser$Parser$Advanced$Done(
+								$elm$core$List$reverse(revItems));
+						},
+						ender)
+					])));
+	});
+var $elm$parser$Parser$Advanced$succeed = function (a) {
+	return $elm$parser$Parser$Advanced$Parser(
+		function (s) {
+			return A3($elm$parser$Parser$Advanced$Good, false, a, s);
+		});
+};
+var $elm$parser$Parser$Advanced$sequenceEndMandatory = F4(
+	function (ws, parseItem, sep, revItems) {
+		return $elm$parser$Parser$Advanced$oneOf(
+			_List_fromArray(
+				[
+					A2(
+					$elm$parser$Parser$Advanced$map,
+					function (item) {
+						return $elm$parser$Parser$Advanced$Loop(
+							A2($elm$core$List$cons, item, revItems));
+					},
+					A2(
+						$elm$parser$Parser$Advanced$ignorer,
+						parseItem,
+						A2(
+							$elm$parser$Parser$Advanced$ignorer,
+							ws,
+							A2($elm$parser$Parser$Advanced$ignorer, sep, ws)))),
+					A2(
+					$elm$parser$Parser$Advanced$map,
+					function (_v0) {
+						return $elm$parser$Parser$Advanced$Done(
+							$elm$core$List$reverse(revItems));
+					},
+					$elm$parser$Parser$Advanced$succeed(_Utils_Tuple0))
+				]));
+	});
+var $elm$parser$Parser$Advanced$sequenceEndOptional = F5(
+	function (ender, ws, parseItem, sep, revItems) {
+		var parseEnd = A2(
+			$elm$parser$Parser$Advanced$map,
+			function (_v0) {
+				return $elm$parser$Parser$Advanced$Done(
+					$elm$core$List$reverse(revItems));
+			},
+			ender);
+		return A2(
+			$elm$parser$Parser$Advanced$skip,
+			ws,
+			$elm$parser$Parser$Advanced$oneOf(
+				_List_fromArray(
+					[
+						A2(
+						$elm$parser$Parser$Advanced$skip,
+						sep,
+						A2(
+							$elm$parser$Parser$Advanced$skip,
+							ws,
+							$elm$parser$Parser$Advanced$oneOf(
+								_List_fromArray(
+									[
+										A2(
+										$elm$parser$Parser$Advanced$map,
+										function (item) {
+											return $elm$parser$Parser$Advanced$Loop(
+												A2($elm$core$List$cons, item, revItems));
+										},
+										parseItem),
+										parseEnd
+									])))),
+						parseEnd
+					])));
+	});
+var $elm$parser$Parser$Advanced$sequenceEnd = F5(
+	function (ender, ws, parseItem, sep, trailing) {
+		var chompRest = function (item) {
+			switch (trailing.$) {
+				case 'Forbidden':
+					return A2(
+						$elm$parser$Parser$Advanced$loop,
+						_List_fromArray(
+							[item]),
+						A4($elm$parser$Parser$Advanced$sequenceEndForbidden, ender, ws, parseItem, sep));
+				case 'Optional':
+					return A2(
+						$elm$parser$Parser$Advanced$loop,
+						_List_fromArray(
+							[item]),
+						A4($elm$parser$Parser$Advanced$sequenceEndOptional, ender, ws, parseItem, sep));
+				default:
+					return A2(
+						$elm$parser$Parser$Advanced$ignorer,
+						A2(
+							$elm$parser$Parser$Advanced$skip,
+							ws,
+							A2(
+								$elm$parser$Parser$Advanced$skip,
+								sep,
+								A2(
+									$elm$parser$Parser$Advanced$skip,
+									ws,
+									A2(
+										$elm$parser$Parser$Advanced$loop,
+										_List_fromArray(
+											[item]),
+										A3($elm$parser$Parser$Advanced$sequenceEndMandatory, ws, parseItem, sep))))),
+						ender);
+			}
+		};
+		return $elm$parser$Parser$Advanced$oneOf(
+			_List_fromArray(
+				[
+					A2($elm$parser$Parser$Advanced$andThen, chompRest, parseItem),
+					A2(
+					$elm$parser$Parser$Advanced$map,
+					function (_v0) {
+						return _List_Nil;
+					},
+					ender)
+				]));
+	});
+var $elm$parser$Parser$Advanced$isSubString = _Parser_isSubString;
+var $elm$parser$Parser$Advanced$token = function (_v0) {
+	var str = _v0.a;
+	var expecting = _v0.b;
+	var progress = !$elm$core$String$isEmpty(str);
+	return $elm$parser$Parser$Advanced$Parser(
+		function (s) {
+			var _v1 = A5($elm$parser$Parser$Advanced$isSubString, str, s.offset, s.row, s.col, s.src);
+			var newOffset = _v1.a;
+			var newRow = _v1.b;
+			var newCol = _v1.c;
+			return _Utils_eq(newOffset, -1) ? A2(
+				$elm$parser$Parser$Advanced$Bad,
+				false,
+				A2($elm$parser$Parser$Advanced$fromState, s, expecting)) : A3(
+				$elm$parser$Parser$Advanced$Good,
+				progress,
+				_Utils_Tuple0,
+				{col: newCol, context: s.context, indent: s.indent, offset: newOffset, row: newRow, src: s.src});
+		});
+};
+var $elm$parser$Parser$Advanced$sequence = function (i) {
+	return A2(
+		$elm$parser$Parser$Advanced$skip,
+		$elm$parser$Parser$Advanced$token(i.start),
+		A2(
+			$elm$parser$Parser$Advanced$skip,
+			i.spaces,
+			A5(
+				$elm$parser$Parser$Advanced$sequenceEnd,
+				$elm$parser$Parser$Advanced$token(i.end),
+				i.spaces,
+				i.item,
+				$elm$parser$Parser$Advanced$token(i.separator),
+				i.trailing)));
+};
+var $elm$parser$Parser$Advanced$Forbidden = {$: 'Forbidden'};
+var $elm$parser$Parser$Advanced$Mandatory = {$: 'Mandatory'};
+var $elm$parser$Parser$Advanced$Optional = {$: 'Optional'};
+var $elm$parser$Parser$toAdvancedTrailing = function (trailing) {
+	switch (trailing.$) {
+		case 'Forbidden':
+			return $elm$parser$Parser$Advanced$Forbidden;
+		case 'Optional':
+			return $elm$parser$Parser$Advanced$Optional;
+		default:
+			return $elm$parser$Parser$Advanced$Mandatory;
+	}
+};
+var $elm$parser$Parser$Expecting = function (a) {
+	return {$: 'Expecting', a: a};
+};
+var $elm$parser$Parser$Advanced$Token = F2(
+	function (a, b) {
+		return {$: 'Token', a: a, b: b};
+	});
+var $elm$parser$Parser$toToken = function (str) {
+	return A2(
+		$elm$parser$Parser$Advanced$Token,
+		str,
+		$elm$parser$Parser$Expecting(str));
+};
+var $elm$parser$Parser$sequence = function (i) {
+	return $elm$parser$Parser$Advanced$sequence(
+		{
+			end: $elm$parser$Parser$toToken(i.end),
+			item: i.item,
+			separator: $elm$parser$Parser$toToken(i.separator),
+			spaces: i.spaces,
+			start: $elm$parser$Parser$toToken(i.start),
+			trailing: $elm$parser$Parser$toAdvancedTrailing(i.trailing)
+		});
+};
+var $elm$parser$Parser$Advanced$isSubChar = _Parser_isSubChar;
+var $elm$parser$Parser$Advanced$chompWhileHelp = F5(
+	function (isGood, offset, row, col, s0) {
+		chompWhileHelp:
+		while (true) {
+			var newOffset = A3($elm$parser$Parser$Advanced$isSubChar, isGood, offset, s0.src);
+			if (_Utils_eq(newOffset, -1)) {
+				return A3(
+					$elm$parser$Parser$Advanced$Good,
+					_Utils_cmp(s0.offset, offset) < 0,
+					_Utils_Tuple0,
+					{col: col, context: s0.context, indent: s0.indent, offset: offset, row: row, src: s0.src});
+			} else {
+				if (_Utils_eq(newOffset, -2)) {
+					var $temp$isGood = isGood,
+						$temp$offset = offset + 1,
+						$temp$row = row + 1,
+						$temp$col = 1,
+						$temp$s0 = s0;
+					isGood = $temp$isGood;
+					offset = $temp$offset;
+					row = $temp$row;
+					col = $temp$col;
+					s0 = $temp$s0;
+					continue chompWhileHelp;
+				} else {
+					var $temp$isGood = isGood,
+						$temp$offset = newOffset,
+						$temp$row = row,
+						$temp$col = col + 1,
+						$temp$s0 = s0;
+					isGood = $temp$isGood;
+					offset = $temp$offset;
+					row = $temp$row;
+					col = $temp$col;
+					s0 = $temp$s0;
+					continue chompWhileHelp;
+				}
+			}
+		}
+	});
+var $elm$parser$Parser$Advanced$chompWhile = function (isGood) {
+	return $elm$parser$Parser$Advanced$Parser(
+		function (s) {
+			return A5($elm$parser$Parser$Advanced$chompWhileHelp, isGood, s.offset, s.row, s.col, s);
+		});
+};
+var $elm$parser$Parser$Advanced$spaces = $elm$parser$Parser$Advanced$chompWhile(
+	function (c) {
+		return _Utils_eq(
+			c,
+			_Utils_chr(' ')) || (_Utils_eq(
+			c,
+			_Utils_chr('\n')) || _Utils_eq(
+			c,
+			_Utils_chr('\r')));
+	});
+var $elm$parser$Parser$spaces = $elm$parser$Parser$Advanced$spaces;
+var $elm$parser$Parser$Done = function (a) {
+	return {$: 'Done', a: a};
+};
+var $elm$parser$Parser$Loop = function (a) {
+	return {$: 'Loop', a: a};
+};
+var $author$project$Sexpr$String = function (a) {
+	return {$: 'String', a: a};
+};
+var $elm$parser$Parser$UnexpectedChar = {$: 'UnexpectedChar'};
+var $elm$parser$Parser$Advanced$chompIf = F2(
+	function (isGood, expecting) {
+		return $elm$parser$Parser$Advanced$Parser(
+			function (s) {
+				var newOffset = A3($elm$parser$Parser$Advanced$isSubChar, isGood, s.offset, s.src);
+				return _Utils_eq(newOffset, -1) ? A2(
+					$elm$parser$Parser$Advanced$Bad,
+					false,
+					A2($elm$parser$Parser$Advanced$fromState, s, expecting)) : (_Utils_eq(newOffset, -2) ? A3(
+					$elm$parser$Parser$Advanced$Good,
+					true,
+					_Utils_Tuple0,
+					{col: 1, context: s.context, indent: s.indent, offset: s.offset + 1, row: s.row + 1, src: s.src}) : A3(
+					$elm$parser$Parser$Advanced$Good,
+					true,
+					_Utils_Tuple0,
+					{col: s.col + 1, context: s.context, indent: s.indent, offset: newOffset, row: s.row, src: s.src}));
+			});
+	});
+var $elm$parser$Parser$chompIf = function (isGood) {
+	return A2($elm$parser$Parser$Advanced$chompIf, isGood, $elm$parser$Parser$UnexpectedChar);
+};
+var $elm$parser$Parser$chompWhile = $elm$parser$Parser$Advanced$chompWhile;
+var $elm$parser$Parser$Advanced$mapChompedString = F2(
+	function (func, _v0) {
+		var parse = _v0.a;
+		return $elm$parser$Parser$Advanced$Parser(
+			function (s0) {
+				var _v1 = parse(s0);
+				if (_v1.$ === 'Bad') {
+					var p = _v1.a;
+					var x = _v1.b;
+					return A2($elm$parser$Parser$Advanced$Bad, p, x);
+				} else {
+					var p = _v1.a;
+					var a = _v1.b;
+					var s1 = _v1.c;
+					return A3(
+						$elm$parser$Parser$Advanced$Good,
+						p,
+						A2(
+							func,
+							A3($elm$core$String$slice, s0.offset, s1.offset, s0.src),
+							a),
+						s1);
+				}
+			});
+	});
+var $elm$parser$Parser$Advanced$getChompedString = function (parser) {
+	return A2($elm$parser$Parser$Advanced$mapChompedString, $elm$core$Basics$always, parser);
+};
+var $elm$parser$Parser$getChompedString = $elm$parser$Parser$Advanced$getChompedString;
+var $elm$parser$Parser$Advanced$keeper = F2(
+	function (parseFunc, parseArg) {
+		return A3($elm$parser$Parser$Advanced$map2, $elm$core$Basics$apL, parseFunc, parseArg);
+	});
+var $elm$parser$Parser$keeper = $elm$parser$Parser$Advanced$keeper;
+var $elm$parser$Parser$toAdvancedStep = function (step) {
+	if (step.$ === 'Loop') {
+		var s = step.a;
+		return $elm$parser$Parser$Advanced$Loop(s);
+	} else {
+		var a = step.a;
+		return $elm$parser$Parser$Advanced$Done(a);
+	}
+};
+var $elm$parser$Parser$loop = F2(
+	function (state, callback) {
+		return A2(
+			$elm$parser$Parser$Advanced$loop,
+			state,
+			function (s) {
+				return A2(
+					$elm$parser$Parser$map,
+					$elm$parser$Parser$toAdvancedStep,
+					callback(s));
+			});
+	});
+var $elm$core$Basics$neq = _Utils_notEqual;
+var $elm$parser$Parser$succeed = $elm$parser$Parser$Advanced$succeed;
+var $author$project$Sexpr$stringP = A2(
+	$elm$parser$Parser$keeper,
+	A2(
+		$elm$parser$Parser$ignorer,
+		$elm$parser$Parser$succeed($author$project$Sexpr$String),
+		$elm$parser$Parser$chompIf(
+			function (c) {
+				return _Utils_eq(
+					c,
+					_Utils_chr('\"'));
+			})),
+	A2(
+		$elm$parser$Parser$loop,
+		'',
+		function (s) {
+			return $elm$parser$Parser$oneOf(
+				_List_fromArray(
+					[
+						A2(
+						$elm$parser$Parser$keeper,
+						A2(
+							$elm$parser$Parser$ignorer,
+							$elm$parser$Parser$succeed(
+								function (t) {
+									return $elm$parser$Parser$Loop(
+										A2($elm$core$String$append, s, t));
+								}),
+							$elm$parser$Parser$chompIf(
+								function (c) {
+									return _Utils_eq(
+										c,
+										_Utils_chr('\\'));
+								})),
+						$elm$parser$Parser$getChompedString(
+							$elm$parser$Parser$chompIf(
+								function (_v0) {
+									return true;
+								}))),
+						A2(
+						$elm$parser$Parser$ignorer,
+						$elm$parser$Parser$succeed(
+							$elm$parser$Parser$Done(s)),
+						$elm$parser$Parser$chompIf(
+							function (c) {
+								return _Utils_eq(
+									c,
+									_Utils_chr('\"'));
+							})),
+						A2(
+						$elm$parser$Parser$keeper,
+						$elm$parser$Parser$succeed(
+							function (t) {
+								return $elm$parser$Parser$Loop(
+									A2($elm$core$String$append, s, t));
+							}),
+						$elm$parser$Parser$getChompedString(
+							$elm$parser$Parser$chompWhile(
+								function (c) {
+									return (!_Utils_eq(
+										c,
+										_Utils_chr('\\'))) && (!_Utils_eq(
+										c,
+										_Utils_chr('\"')));
+								})))
+					]));
+		}));
+var $elm$parser$Parser$token = function (str) {
+	return $elm$parser$Parser$Advanced$token(
+		$elm$parser$Parser$toToken(str));
+};
+var $elm$parser$Parser$ExpectingVariable = {$: 'ExpectingVariable'};
+var $elm$parser$Parser$Advanced$varHelp = F7(
+	function (isGood, offset, row, col, src, indent, context) {
+		varHelp:
+		while (true) {
+			var newOffset = A3($elm$parser$Parser$Advanced$isSubChar, isGood, offset, src);
+			if (_Utils_eq(newOffset, -1)) {
+				return {col: col, context: context, indent: indent, offset: offset, row: row, src: src};
+			} else {
+				if (_Utils_eq(newOffset, -2)) {
+					var $temp$isGood = isGood,
+						$temp$offset = offset + 1,
+						$temp$row = row + 1,
+						$temp$col = 1,
+						$temp$src = src,
+						$temp$indent = indent,
+						$temp$context = context;
+					isGood = $temp$isGood;
+					offset = $temp$offset;
+					row = $temp$row;
+					col = $temp$col;
+					src = $temp$src;
+					indent = $temp$indent;
+					context = $temp$context;
+					continue varHelp;
+				} else {
+					var $temp$isGood = isGood,
+						$temp$offset = newOffset,
+						$temp$row = row,
+						$temp$col = col + 1,
+						$temp$src = src,
+						$temp$indent = indent,
+						$temp$context = context;
+					isGood = $temp$isGood;
+					offset = $temp$offset;
+					row = $temp$row;
+					col = $temp$col;
+					src = $temp$src;
+					indent = $temp$indent;
+					context = $temp$context;
+					continue varHelp;
+				}
+			}
+		}
+	});
+var $elm$parser$Parser$Advanced$variable = function (i) {
+	return $elm$parser$Parser$Advanced$Parser(
+		function (s) {
+			var firstOffset = A3($elm$parser$Parser$Advanced$isSubChar, i.start, s.offset, s.src);
+			if (_Utils_eq(firstOffset, -1)) {
+				return A2(
+					$elm$parser$Parser$Advanced$Bad,
+					false,
+					A2($elm$parser$Parser$Advanced$fromState, s, i.expecting));
+			} else {
+				var s1 = _Utils_eq(firstOffset, -2) ? A7($elm$parser$Parser$Advanced$varHelp, i.inner, s.offset + 1, s.row + 1, 1, s.src, s.indent, s.context) : A7($elm$parser$Parser$Advanced$varHelp, i.inner, firstOffset, s.row, s.col + 1, s.src, s.indent, s.context);
+				var name = A3($elm$core$String$slice, s.offset, s1.offset, s.src);
+				return A2($elm$core$Set$member, name, i.reserved) ? A2(
+					$elm$parser$Parser$Advanced$Bad,
+					false,
+					A2($elm$parser$Parser$Advanced$fromState, s, i.expecting)) : A3($elm$parser$Parser$Advanced$Good, true, name, s1);
+			}
+		});
+};
+var $elm$parser$Parser$variable = function (i) {
+	return $elm$parser$Parser$Advanced$variable(
+		{expecting: $elm$parser$Parser$ExpectingVariable, inner: i.inner, reserved: i.reserved, start: i.start});
+};
+function $author$project$Sexpr$cyclic$sexprP() {
+	return $elm$parser$Parser$oneOf(
+		_List_fromArray(
+			[
+				A2(
+				$elm$parser$Parser$map,
+				$author$project$Sexpr$List,
+				$elm$parser$Parser$sequence(
+					{
+						end: ')',
+						item: $elm$parser$Parser$lazy(
+							function (_v0) {
+								return $author$project$Sexpr$cyclic$sexprP();
+							}),
+						separator: '',
+						spaces: $elm$parser$Parser$spaces,
+						start: '(',
+						trailing: $elm$parser$Parser$Forbidden
+					})),
+				A2($elm$parser$Parser$map, $author$project$Sexpr$Int, $elm$parser$Parser$int),
+				A2(
+				$elm$parser$Parser$map,
+				$author$project$Sexpr$Symbol,
+				$elm$parser$Parser$variable(
+					{
+						inner: $author$project$Sexpr$isSymbol,
+						reserved: $elm$core$Set$fromList(
+							_List_fromArray(
+								['#t', '#f'])),
+						start: $author$project$Sexpr$isSymbol
+					})),
+				$author$project$Sexpr$stringP,
+				$elm$parser$Parser$oneOf(
+				_List_fromArray(
+					[
+						A2(
+						$elm$parser$Parser$ignorer,
+						$elm$parser$Parser$succeed(
+							$author$project$Sexpr$Bool(true)),
+						$elm$parser$Parser$token('#t')),
+						A2(
+						$elm$parser$Parser$ignorer,
+						$elm$parser$Parser$succeed(
+							$author$project$Sexpr$Bool(false)),
+						$elm$parser$Parser$token('#f'))
+					]))
+			]));
+}
+try {
+	var $author$project$Sexpr$sexprP = $author$project$Sexpr$cyclic$sexprP();
+	$author$project$Sexpr$cyclic$sexprP = function () {
+		return $author$project$Sexpr$sexprP;
+	};
+} catch ($) {
+	throw 'Some top-level definitions from `Sexpr` are causing infinite recursion:\n\n  ┌─────┐\n  │    sexprP\n  └─────┘\n\nThese errors are very tricky, so read https://elm-lang.org/0.19.1/bad-recursion to learn how to fix it!';}
+var $author$project$Sexpr$expectSexpr = function (f) {
+	return $elm$http$Http$expectString(
+		function (r) {
+			return f(
+				A2(
+					$elm$core$Result$andThen,
+					function (s) {
+						var _v0 = A2($elm$parser$Parser$run, $author$project$Sexpr$sexprP, s);
+						if (_v0.$ === 'Ok') {
+							var sexpr = _v0.a;
+							return $elm$core$Result$Ok(sexpr);
+						} else {
+							return $elm$core$Result$Err(
+								$elm$http$Http$BadBody('Failed to parse sexpr'));
+						}
+					},
+					r));
+		});
+};
+var $elm$core$Dict$fromList = function (assocs) {
+	return A3(
+		$elm$core$List$foldl,
+		F2(
+			function (_v0, dict) {
+				var key = _v0.a;
+				var value = _v0.b;
+				return A3($elm$core$Dict$insert, key, value, dict);
+			}),
+		$elm$core$Dict$empty,
+		assocs);
+};
+var $elm$core$Maybe$map2 = F3(
+	function (func, ma, mb) {
+		if (ma.$ === 'Nothing') {
+			return $elm$core$Maybe$Nothing;
+		} else {
+			var a = ma.a;
+			if (mb.$ === 'Nothing') {
+				return $elm$core$Maybe$Nothing;
+			} else {
+				var b = mb.a;
+				return $elm$core$Maybe$Just(
+					A2(func, a, b));
+			}
+		}
+	});
+var $author$project$QStore$Query$sequenceMaybe = function (l) {
+	if (!l.b) {
+		return $elm$core$Maybe$Just(_List_Nil);
+	} else {
+		var res = l.a;
+		var ress = l.b;
+		return A3(
+			$elm$core$Maybe$map2,
+			F2(
+				function (resOk, ressOk) {
+					return A2($elm$core$List$cons, resOk, ressOk);
+				}),
+			res,
+			$author$project$QStore$Query$sequenceMaybe(ress));
+	}
+};
+var $author$project$QStore$Core$SHA256HashBase16 = function (a) {
+	return {$: 'SHA256HashBase16', a: a};
+};
+var $author$project$QStore$Core$VFileHandle = function (a) {
+	return {$: 'VFileHandle', a: a};
+};
+var $author$project$QStore$Core$VId = function (a) {
+	return {$: 'VId', a: a};
+};
+var $author$project$QStore$Core$VInt = function (a) {
+	return {$: 'VInt', a: a};
+};
+var $author$project$QStore$Core$Id = function (a) {
+	return {$: 'Id', a: a};
+};
+var $author$project$QStore$Core$idFromSexpr = function (s) {
+	if (((((((s.$ === 'List') && s.a.b) && (s.a.a.$ === 'Symbol')) && (s.a.a.a === 'id')) && s.a.b.b) && (s.a.b.a.$ === 'Int')) && (!s.a.b.b.b)) {
+		var _v1 = s.a;
+		var _v2 = _v1.b;
+		var id = _v2.a.a;
+		return $elm$core$Maybe$Just(
+			$author$project$QStore$Core$Id(id));
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$QStore$Core$valueFromSexpr = function (s) {
+	_v0$3:
+	while (true) {
+		switch (s.$) {
+			case 'String':
+				var str = s.a;
+				return $elm$core$Maybe$Just(
+					$author$project$QStore$Core$VString(str));
+			case 'Int':
+				var n = s.a;
+				return $elm$core$Maybe$Just(
+					$author$project$QStore$Core$VInt(n));
+			case 'List':
+				if (((((s.a.b && (s.a.a.$ === 'Symbol')) && (s.a.a.a === 'file')) && s.a.b.b) && (s.a.b.a.$ === 'String')) && (!s.a.b.b.b)) {
+					var _v1 = s.a;
+					var _v2 = _v1.b;
+					var hash = _v2.a.a;
+					return $elm$core$Maybe$Just(
+						$author$project$QStore$Core$VFileHandle(
+							$author$project$QStore$Core$SHA256HashBase16(hash)));
+				} else {
+					break _v0$3;
+				}
+			default:
+				break _v0$3;
+		}
+	}
+	return A2(
+		$elm$core$Maybe$map,
+		$author$project$QStore$Core$VId,
+		$author$project$QStore$Core$idFromSexpr(s));
+};
+var $author$project$QStore$Query$answerFromSexpr = function (sexpr) {
+	if (sexpr.$ === 'List') {
+		var s = sexpr.a;
+		return A2(
+			$elm$core$Maybe$map,
+			$elm$core$Dict$fromList,
+			$author$project$QStore$Query$sequenceMaybe(
+				A2(
+					$elm$core$List$map,
+					function (pair) {
+						if (((((pair.$ === 'List') && pair.a.b) && (pair.a.a.$ === 'Symbol')) && pair.a.b.b) && (!pair.a.b.b.b)) {
+							var _v2 = pair.a;
+							var x = _v2.a.a;
+							var _v3 = _v2.b;
+							var valS = _v3.a;
+							return A2(
+								$elm$core$Maybe$map,
+								function (val) {
+									return _Utils_Tuple2(x, val);
+								},
+								$author$project$QStore$Core$valueFromSexpr(valS));
+						} else {
+							return $elm$core$Maybe$Nothing;
+						}
+					},
+					s)));
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$QStore$Query$responseFromSexpr = function (s) {
+	if (s.$ === 'List') {
+		var l = s.a;
+		return $author$project$QStore$Query$sequenceMaybe(
+			A2($elm$core$List$map, $author$project$QStore$Query$answerFromSexpr, l));
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$QStore$Query$expectResponse = function (f) {
+	return $author$project$Sexpr$expectSexpr(
+		function (sRes) {
+			return f(
+				A2(
+					$elm$core$Result$andThen,
+					function (m) {
+						return A2(
+							$elm$core$Maybe$withDefault,
+							$elm$core$Result$Err(
+								$elm$http$Http$BadBody('Failed to parse response')),
+							A2($elm$core$Maybe$map, $elm$core$Result$Ok, m));
+					},
+					A2($elm$core$Result$map, $author$project$QStore$Query$responseFromSexpr, sRes)));
+		});
+};
+var $elm$http$Http$Request = function (a) {
+	return {$: 'Request', a: a};
+};
+var $elm$http$Http$State = F2(
+	function (reqs, subs) {
+		return {reqs: reqs, subs: subs};
+	});
+var $elm$http$Http$init = $elm$core$Task$succeed(
+	A2($elm$http$Http$State, $elm$core$Dict$empty, _List_Nil));
+var $elm$core$Process$kill = _Scheduler_kill;
+var $elm$core$Process$spawn = _Scheduler_spawn;
+var $elm$http$Http$updateReqs = F3(
+	function (router, cmds, reqs) {
+		updateReqs:
+		while (true) {
+			if (!cmds.b) {
+				return $elm$core$Task$succeed(reqs);
+			} else {
+				var cmd = cmds.a;
+				var otherCmds = cmds.b;
+				if (cmd.$ === 'Cancel') {
+					var tracker = cmd.a;
+					var _v2 = A2($elm$core$Dict$get, tracker, reqs);
+					if (_v2.$ === 'Nothing') {
+						var $temp$router = router,
+							$temp$cmds = otherCmds,
+							$temp$reqs = reqs;
+						router = $temp$router;
+						cmds = $temp$cmds;
+						reqs = $temp$reqs;
+						continue updateReqs;
+					} else {
+						var pid = _v2.a;
+						return A2(
+							$elm$core$Task$andThen,
+							function (_v3) {
+								return A3(
+									$elm$http$Http$updateReqs,
+									router,
+									otherCmds,
+									A2($elm$core$Dict$remove, tracker, reqs));
+							},
+							$elm$core$Process$kill(pid));
+					}
+				} else {
+					var req = cmd.a;
+					return A2(
+						$elm$core$Task$andThen,
+						function (pid) {
+							var _v4 = req.tracker;
+							if (_v4.$ === 'Nothing') {
+								return A3($elm$http$Http$updateReqs, router, otherCmds, reqs);
+							} else {
+								var tracker = _v4.a;
+								return A3(
+									$elm$http$Http$updateReqs,
+									router,
+									otherCmds,
+									A3($elm$core$Dict$insert, tracker, pid, reqs));
+							}
+						},
+						$elm$core$Process$spawn(
+							A3(
+								_Http_toTask,
+								router,
+								$elm$core$Platform$sendToApp(router),
+								req)));
+				}
+			}
+		}
+	});
+var $elm$http$Http$onEffects = F4(
+	function (router, cmds, subs, state) {
+		return A2(
+			$elm$core$Task$andThen,
+			function (reqs) {
+				return $elm$core$Task$succeed(
+					A2($elm$http$Http$State, reqs, subs));
+			},
+			A3($elm$http$Http$updateReqs, router, cmds, state.reqs));
+	});
+var $elm$core$List$maybeCons = F3(
+	function (f, mx, xs) {
+		var _v0 = f(mx);
+		if (_v0.$ === 'Just') {
+			var x = _v0.a;
+			return A2($elm$core$List$cons, x, xs);
+		} else {
+			return xs;
+		}
+	});
+var $elm$core$List$filterMap = F2(
+	function (f, xs) {
+		return A3(
+			$elm$core$List$foldr,
+			$elm$core$List$maybeCons(f),
+			_List_Nil,
+			xs);
+	});
+var $elm$http$Http$maybeSend = F4(
+	function (router, desiredTracker, progress, _v0) {
+		var actualTracker = _v0.a;
+		var toMsg = _v0.b;
+		return _Utils_eq(desiredTracker, actualTracker) ? $elm$core$Maybe$Just(
+			A2(
+				$elm$core$Platform$sendToApp,
+				router,
+				toMsg(progress))) : $elm$core$Maybe$Nothing;
+	});
+var $elm$http$Http$onSelfMsg = F3(
+	function (router, _v0, state) {
+		var tracker = _v0.a;
+		var progress = _v0.b;
+		return A2(
+			$elm$core$Task$andThen,
+			function (_v1) {
+				return $elm$core$Task$succeed(state);
+			},
+			$elm$core$Task$sequence(
+				A2(
+					$elm$core$List$filterMap,
+					A3($elm$http$Http$maybeSend, router, tracker, progress),
+					state.subs)));
+	});
+var $elm$http$Http$Cancel = function (a) {
+	return {$: 'Cancel', a: a};
+};
+var $elm$http$Http$cmdMap = F2(
+	function (func, cmd) {
+		if (cmd.$ === 'Cancel') {
+			var tracker = cmd.a;
+			return $elm$http$Http$Cancel(tracker);
+		} else {
+			var r = cmd.a;
+			return $elm$http$Http$Request(
+				{
+					allowCookiesFromOtherDomains: r.allowCookiesFromOtherDomains,
+					body: r.body,
+					expect: A2(_Http_mapExpect, func, r.expect),
+					headers: r.headers,
+					method: r.method,
+					timeout: r.timeout,
+					tracker: r.tracker,
+					url: r.url
+				});
+		}
+	});
+var $elm$http$Http$MySub = F2(
+	function (a, b) {
+		return {$: 'MySub', a: a, b: b};
+	});
+var $elm$http$Http$subMap = F2(
+	function (func, _v0) {
+		var tracker = _v0.a;
+		var toMsg = _v0.b;
+		return A2(
+			$elm$http$Http$MySub,
+			tracker,
+			A2($elm$core$Basics$composeR, toMsg, func));
+	});
+_Platform_effectManagers['Http'] = _Platform_createManager($elm$http$Http$init, $elm$http$Http$onEffects, $elm$http$Http$onSelfMsg, $elm$http$Http$cmdMap, $elm$http$Http$subMap);
+var $elm$http$Http$command = _Platform_leaf('Http');
+var $elm$http$Http$subscription = _Platform_leaf('Http');
+var $elm$http$Http$request = function (r) {
+	return $elm$http$Http$command(
+		$elm$http$Http$Request(
+			{allowCookiesFromOtherDomains: false, body: r.body, expect: r.expect, headers: r.headers, method: r.method, timeout: r.timeout, tracker: r.tracker, url: r.url}));
+};
+var $elm$http$Http$post = function (r) {
+	return $elm$http$Http$request(
+		{body: r.body, expect: r.expect, headers: _List_Nil, method: 'POST', timeout: $elm$core$Maybe$Nothing, tracker: $elm$core$Maybe$Nothing, url: r.url});
+};
+var $author$project$QStore$Core$idToSexpr = function (_v0) {
+	var i = _v0.a;
+	return $author$project$Sexpr$List(
+		_List_fromArray(
+			[
+				$author$project$Sexpr$Symbol('id'),
+				$author$project$Sexpr$Int(i)
+			]));
+};
+var $author$project$QStore$Query$queryValueToSexpr = F2(
+	function (aToSexpr, g) {
+		switch (g.$) {
+			case 'QVar':
+				var x = g.a;
+				return $author$project$Sexpr$Symbol(x);
+			case 'QWildcard':
+				return $author$project$Sexpr$Symbol('_');
+			default:
+				var a = g.a;
+				return aToSexpr(a);
+		}
+	});
+var $author$project$QStore$Core$valueToSexpr = function (v) {
+	switch (v.$) {
+		case 'VId':
+			var id = v.a;
+			return $author$project$QStore$Core$idToSexpr(id);
+		case 'VString':
+			var s = v.a;
+			return $author$project$Sexpr$String(s);
+		case 'VInt':
+			var n = v.a;
+			return $author$project$Sexpr$Int(n);
+		default:
+			var hash = v.a.a;
+			return $author$project$Sexpr$List(
+				_List_fromArray(
+					[
+						$author$project$Sexpr$Symbol('file'),
+						$author$project$Sexpr$String(hash)
+					]));
+	}
+};
+var $author$project$QStore$Query$queryQToSexpr = function (q) {
+	return $author$project$Sexpr$List(
+		_List_fromArray(
+			[
+				A2($author$project$QStore$Query$queryValueToSexpr, $author$project$QStore$Core$idToSexpr, q.id),
+				A2($author$project$QStore$Query$queryValueToSexpr, $author$project$Sexpr$String, q.attr),
+				A2($author$project$QStore$Query$queryValueToSexpr, $author$project$QStore$Core$valueToSexpr, q.value),
+				A2($author$project$QStore$Query$queryValueToSexpr, $author$project$QStore$Core$idToSexpr, q.tx)
+			]));
+};
+var $author$project$QStore$Query$queryToSexpr = function (l) {
+	return $author$project$Sexpr$List(
+		A2($elm$core$List$map, $author$project$QStore$Query$queryQToSexpr, l));
+};
+var $elm$core$Tuple$second = function (_v0) {
+	var y = _v0.b;
+	return y;
+};
+var $author$project$QStore$Query$runVar = function (_v0) {
+	var f = _v0.a;
+	return f(0).b;
+};
+var $elm$http$Http$stringBody = _Http_pair;
+var $elm$core$String$concat = function (strings) {
+	return A2($elm$core$String$join, '', strings);
+};
+var $elm$core$String$cons = _String_cons;
+var $elm$core$String$foldr = _String_foldr;
+var $author$project$Sexpr$escapeString = function (s) {
+	return A3(
+		$elm$core$String$foldr,
+		F2(
+			function (c, t) {
+				switch (c.valueOf()) {
+					case '\"':
+						return A2($elm$core$String$append, '\\\"', t);
+					case '\\':
+						return A2($elm$core$String$append, '\\\\', t);
+					default:
+						return A2($elm$core$String$cons, c, t);
+				}
+			}),
+		'',
+		s);
+};
+var $elm$core$List$intersperse = F2(
+	function (sep, xs) {
+		if (!xs.b) {
+			return _List_Nil;
+		} else {
+			var hd = xs.a;
+			var tl = xs.b;
+			var step = F2(
+				function (x, rest) {
+					return A2(
+						$elm$core$List$cons,
+						sep,
+						A2($elm$core$List$cons, x, rest));
+				});
+			var spersed = A3($elm$core$List$foldr, step, _List_Nil, tl);
+			return A2($elm$core$List$cons, hd, spersed);
+		}
+	});
+var $author$project$Sexpr$toString = function (sexpr) {
+	switch (sexpr.$) {
+		case 'List':
+			var l = sexpr.a;
+			return $elm$core$String$concat(
+				$elm$core$List$concat(
+					_List_fromArray(
+						[
+							_List_fromArray(
+							['(']),
+							A2(
+							$elm$core$List$intersperse,
+							' ',
+							A2($elm$core$List$map, $author$project$Sexpr$toString, l)),
+							_List_fromArray(
+							[')'])
+						])));
+		case 'Symbol':
+			var s = sexpr.a;
+			return s;
+		case 'String':
+			var s = sexpr.a;
+			return $elm$core$String$concat(
+				_List_fromArray(
+					[
+						'\"',
+						$author$project$Sexpr$escapeString(s),
+						'\"'
+					]));
+		case 'Bool':
+			if (sexpr.a) {
+				return '#t';
+			} else {
+				return '#f';
+			}
+		default:
+			var n = sexpr.a;
+			return $elm$core$String$fromInt(n);
+	}
+};
+var $author$project$QStore$Query$query = F2(
+	function (url, _v0) {
+		var v = _v0.a;
+		var qf = _v0.b;
+		var _v1 = qf(
+			$author$project$QStore$Query$runVar(v));
+		var q = _v1.a;
+		var proc = _v1.b;
+		return $elm$http$Http$post(
+			{
+				body: A2(
+					$elm$http$Http$stringBody,
+					'application/sexpr',
+					$author$project$Sexpr$toString(
+						$author$project$QStore$Query$queryToSexpr(q))),
+				expect: $author$project$QStore$Query$expectResponse(
+					function (respRes) {
+						if (respRes.$ === 'Ok') {
+							var resp = respRes.a;
+							return proc(resp);
+						} else {
+							var err = respRes.a;
+							return $elm$core$Result$Err(
+								$author$project$QStore$Query$NetworkError(err));
+						}
+					}),
+				url: url
+			});
+	});
+var $author$project$Main$init = function (_v0) {
+	return _Utils_Tuple2(
+		{browser: $author$project$Main$Loading, currentSong: $elm$core$Maybe$Nothing},
+		A2(
+			$elm$core$Platform$Cmd$map,
+			function (res) {
+				if (res.$ === 'Ok') {
+					var albums = res.a;
+					return $author$project$Main$ViewAlbums(albums);
+				} else {
+					return $author$project$Main$ViewAlbums(_List_Nil);
+				}
+			},
+			A2($author$project$QStore$Query$query, 'http://localhost:2718/database/query', $author$project$Album$query)));
+};
+var $elm$core$Platform$Sub$batch = _Platform_batch;
+var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
+var $author$project$Main$subscriptions = function (_v0) {
+	return $elm$core$Platform$Sub$none;
+};
+var $author$project$Main$Albums = function (a) {
+	return {$: 'Albums', a: a};
+};
+var $author$project$Main$Tracks = function (a) {
+	return {$: 'Tracks', a: a};
+};
+var $author$project$Main$ViewTracks = function (a) {
+	return {$: 'ViewTracks', a: a};
+};
+var $author$project$QStore$Core$fileHandleToPath = function (_v0) {
+	var hash = _v0.a;
+	return hash;
+};
+var $elm$core$Platform$Cmd$batch = _Platform_batch;
+var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
+var $author$project$Audio$Play = {$: 'Play'};
+var $author$project$Audio$play = $author$project$Audio$Play;
+var $author$project$Audio$audioCommand = _Platform_outgoingPort('audioCommand', $elm$core$Basics$identity);
+var $elm$json$Json$Encode$list = F2(
+	function (func, entries) {
+		return _Json_wrap(
+			A3(
+				$elm$core$List$foldl,
+				_Json_addEntry(func),
+				_Json_emptyArray(_Utils_Tuple0),
+				entries));
+	});
+var $elm$json$Json$Encode$object = function (pairs) {
+	return _Json_wrap(
+		A3(
+			$elm$core$List$foldl,
+			F2(
+				function (_v0, obj) {
+					var k = _v0.a;
+					var v = _v0.b;
+					return A3(_Json_addField, k, v, obj);
+				}),
+			_Json_emptyObject(_Utils_Tuple0),
+			pairs));
+};
+var $elm$core$List$singleton = function (value) {
+	return _List_fromArray(
+		[value]);
+};
+var $elm$json$Json$Encode$string = _Json_wrap;
+var $author$project$Audio$serialize = function (cmd) {
+	switch (cmd.$) {
+		case 'List':
+			var l = cmd.a;
+			return $elm$core$List$concat(
+				A2($elm$core$List$map, $author$project$Audio$serialize, l));
+		case 'Play':
+			return $elm$core$List$singleton(
+				$elm$json$Json$Encode$object(
+					_List_fromArray(
+						[
+							_Utils_Tuple2(
+							'command',
+							$elm$json$Json$Encode$string('play'))
+						])));
+		case 'Pause':
+			return $elm$core$List$singleton(
+				$elm$json$Json$Encode$object(
+					_List_fromArray(
+						[
+							_Utils_Tuple2(
+							'command',
+							$elm$json$Json$Encode$string('pause'))
+						])));
+		default:
+			var url = cmd.a;
+			return $elm$core$List$singleton(
+				$elm$json$Json$Encode$object(
+					_List_fromArray(
+						[
+							_Utils_Tuple2(
+							'command',
+							$elm$json$Json$Encode$string('setSource')),
+							_Utils_Tuple2(
+							'url',
+							$elm$json$Json$Encode$string(url))
+						])));
+	}
+};
+var $author$project$Audio$run = function (cmd) {
+	return $author$project$Audio$audioCommand(
+		A2(
+			$elm$json$Json$Encode$list,
+			function (v) {
+				return v;
+			},
+			$author$project$Audio$serialize(cmd)));
+};
+var $author$project$Audio$List = function (a) {
+	return {$: 'List', a: a};
+};
+var $author$project$Audio$sequence = function (l) {
+	return $author$project$Audio$List(l);
+};
+var $author$project$Audio$SetSource = function (a) {
+	return {$: 'SetSource', a: a};
+};
+var $author$project$Audio$setSource = function (src) {
+	return $author$project$Audio$SetSource(src);
+};
+var $author$project$QStore$Query$valueToFileHandle = function (v) {
+	if (v.$ === 'VFileHandle') {
+		var h = v.a;
+		return $elm$core$Maybe$Just(h);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$QStore$Query$fileHandleVar = $author$project$QStore$Query$Var(
+	function (n) {
+		return _Utils_Tuple2(
+			n + 1,
+			A2(
+				$author$project$QStore$Query$QueryVar,
+				A2(
+					$elm$core$String$append,
+					'x',
+					$elm$core$String$fromInt(n)),
+				$author$project$QStore$Query$valueToFileHandle));
+	});
+var $author$project$QStore$Query$id = function (i) {
+	return A3(
+		$author$project$QStore$Query$QuerySlot,
+		$author$project$QStore$Query$QVal(i),
+		$author$project$QStore$Query$QVal(
+			$author$project$QStore$Core$VId(i)),
+		function (_v0) {
+			return $elm$core$Result$Ok(
+				$elm$core$Maybe$Just(_Utils_Tuple0));
+		});
+};
+var $author$project$QStore$Query$valueToInt = function (v) {
+	if (v.$ === 'VInt') {
+		var x = v.a;
+		return $elm$core$Maybe$Just(x);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$QStore$Query$intVar = $author$project$QStore$Query$Var(
+	function (n) {
+		return _Utils_Tuple2(
+			n + 1,
+			A2(
+				$author$project$QStore$Query$QueryVar,
+				A2(
+					$elm$core$String$append,
+					'x',
+					$elm$core$String$fromInt(n)),
+				$author$project$QStore$Query$valueToInt));
+	});
+var $author$project$Album$tracksQuery = function (album) {
+	return _Utils_Tuple2(
+		A2(
+			$author$project$QStore$Query$varApp,
+			$author$project$QStore$Query$fileHandleVar,
+			A2(
+				$author$project$QStore$Query$varApp,
+				$author$project$QStore$Query$stringVar,
+				A2(
+					$author$project$QStore$Query$varApp,
+					$author$project$QStore$Query$idVar,
+					A2(
+						$author$project$QStore$Query$varApp,
+						$author$project$QStore$Query$intVar,
+						A2(
+							$author$project$QStore$Query$varApp,
+							$author$project$QStore$Query$idVar,
+							$author$project$QStore$Query$varPure(
+								F5(
+									function (track, number, song, name, file) {
+										return {file: file, name: name, number: number, song: song, track: track};
+									}))))))),
+		function (ctx) {
+			return A2(
+				$author$project$QStore$Query$app,
+				$author$project$QStore$Query$true(
+					{
+						attr: $author$project$QStore$Query$string('file'),
+						id: $author$project$QStore$Query$var(ctx.song),
+						tx: $author$project$QStore$Query$wildcard,
+						value: $author$project$QStore$Query$var(ctx.file)
+					}),
+				A2(
+					$author$project$QStore$Query$app,
+					$author$project$QStore$Query$true(
+						{
+							attr: $author$project$QStore$Query$string('name'),
+							id: $author$project$QStore$Query$var(ctx.song),
+							tx: $author$project$QStore$Query$wildcard,
+							value: $author$project$QStore$Query$var(ctx.name)
+						}),
+					A2(
+						$author$project$QStore$Query$app,
+						$author$project$QStore$Query$true(
+							{
+								attr: $author$project$QStore$Query$string('song'),
+								id: $author$project$QStore$Query$var(ctx.track),
+								tx: $author$project$QStore$Query$wildcard,
+								value: $author$project$QStore$Query$var(ctx.song)
+							}),
+						A2(
+							$author$project$QStore$Query$app,
+							$author$project$QStore$Query$true(
+								{
+									attr: $author$project$QStore$Query$string('number'),
+									id: $author$project$QStore$Query$var(ctx.track),
+									tx: $author$project$QStore$Query$wildcard,
+									value: $author$project$QStore$Query$var(ctx.number)
+								}),
+							A2(
+								$author$project$QStore$Query$app,
+								$author$project$QStore$Query$true(
+									{
+										attr: $author$project$QStore$Query$string('includes track'),
+										id: $author$project$QStore$Query$id(album.id),
+										tx: $author$project$QStore$Query$wildcard,
+										value: $author$project$QStore$Query$var(ctx.track)
+									}),
+								$author$project$QStore$Query$pure(
+									F5(
+										function (a, b, c, d, e) {
+											return {
+												id: a.value,
+												number: b.value,
+												song: {file: e.value, id: c.value, name: d.value}
+											};
+										})))))));
+		});
+};
+var $author$project$Main$update = F2(
+	function (msg, m) {
+		switch (msg.$) {
+			case 'ViewAlbums':
+				var albums = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						m,
+						{
+							browser: $author$project$Main$Albums(
+								{albums: albums, editing: $elm$core$Maybe$Nothing})
+						}),
+					$elm$core$Platform$Cmd$none);
+			case 'ViewAlbum':
+				var album = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						m,
+						{browser: $author$project$Main$Loading}),
+					A2(
+						$elm$core$Platform$Cmd$map,
+						function (res) {
+							if (res.$ === 'Ok') {
+								var tracks = res.a;
+								return $author$project$Main$ViewTracks(tracks);
+							} else {
+								return $author$project$Main$ViewTracks(_List_Nil);
+							}
+						},
+						A2(
+							$author$project$QStore$Query$query,
+							'http://localhost:2718/database/query',
+							$author$project$Album$tracksQuery(album))));
+			case 'ViewTracks':
+				var tracks = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						m,
+						{
+							browser: $author$project$Main$Tracks(tracks)
+						}),
+					$elm$core$Platform$Cmd$none);
+			case 'PlaySong':
+				var song = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						m,
+						{
+							currentSong: $elm$core$Maybe$Just(song)
+						}),
+					$author$project$Audio$run(
+						$author$project$Audio$sequence(
+							_List_fromArray(
+								[
+									$author$project$Audio$setSource(
+									A2(
+										$elm$core$String$append,
+										'http://localhost:2718/files/',
+										$author$project$QStore$Core$fileHandleToPath(song.file))),
+									$author$project$Audio$play
+								]))));
+			case 'EditAlbum':
+				var album = msg.a;
+				var _v2 = m.browser;
+				if (_v2.$ === 'Albums') {
+					var a = _v2.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							m,
+							{
+								browser: $author$project$Main$Albums(
+									_Utils_update(
+										a,
+										{
+											editing: $elm$core$Maybe$Just(album)
+										}))
+							}),
+						$elm$core$Platform$Cmd$none);
+				} else {
+					return _Utils_Tuple2(m, $elm$core$Platform$Cmd$none);
+				}
+			default:
+				var _v3 = m.browser;
+				if (_v3.$ === 'Albums') {
+					var a = _v3.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							m,
+							{
+								browser: $author$project$Main$Albums(
+									_Utils_update(
+										a,
+										{editing: $elm$core$Maybe$Nothing}))
+							}),
+						$elm$core$Platform$Cmd$none);
+				} else {
+					return _Utils_Tuple2(m, $elm$core$Platform$Cmd$none);
+				}
+		}
+	});
+var $rtfeldman$elm_css$VirtualDom$Styled$UnscopedStyles = function (a) {
+	return {$: 'UnscopedStyles', a: a};
+};
+var $robinheghan$murmur3$Murmur3$HashData = F4(
+	function (shift, seed, hash, charsProcessed) {
+		return {charsProcessed: charsProcessed, hash: hash, seed: seed, shift: shift};
+	});
+var $robinheghan$murmur3$Murmur3$c1 = 3432918353;
+var $robinheghan$murmur3$Murmur3$c2 = 461845907;
+var $elm$core$Bitwise$and = _Bitwise_and;
+var $elm$core$Bitwise$shiftLeftBy = _Bitwise_shiftLeftBy;
+var $elm$core$Bitwise$shiftRightZfBy = _Bitwise_shiftRightZfBy;
+var $robinheghan$murmur3$Murmur3$multiplyBy = F2(
+	function (b, a) {
+		return ((a & 65535) * b) + ((((a >>> 16) * b) & 65535) << 16);
+	});
+var $elm$core$Bitwise$or = _Bitwise_or;
+var $robinheghan$murmur3$Murmur3$rotlBy = F2(
+	function (b, a) {
+		return (a << b) | (a >>> (32 - b));
+	});
+var $elm$core$Bitwise$xor = _Bitwise_xor;
+var $robinheghan$murmur3$Murmur3$finalize = function (data) {
+	var acc = (!(!data.hash)) ? (data.seed ^ A2(
+		$robinheghan$murmur3$Murmur3$multiplyBy,
+		$robinheghan$murmur3$Murmur3$c2,
+		A2(
+			$robinheghan$murmur3$Murmur3$rotlBy,
+			15,
+			A2($robinheghan$murmur3$Murmur3$multiplyBy, $robinheghan$murmur3$Murmur3$c1, data.hash)))) : data.seed;
+	var h0 = acc ^ data.charsProcessed;
+	var h1 = A2($robinheghan$murmur3$Murmur3$multiplyBy, 2246822507, h0 ^ (h0 >>> 16));
+	var h2 = A2($robinheghan$murmur3$Murmur3$multiplyBy, 3266489909, h1 ^ (h1 >>> 13));
+	return (h2 ^ (h2 >>> 16)) >>> 0;
+};
+var $elm$core$String$foldl = _String_foldl;
+var $robinheghan$murmur3$Murmur3$mix = F2(
+	function (h1, k1) {
+		return A2(
+			$robinheghan$murmur3$Murmur3$multiplyBy,
+			5,
+			A2(
+				$robinheghan$murmur3$Murmur3$rotlBy,
+				13,
+				h1 ^ A2(
+					$robinheghan$murmur3$Murmur3$multiplyBy,
+					$robinheghan$murmur3$Murmur3$c2,
+					A2(
+						$robinheghan$murmur3$Murmur3$rotlBy,
+						15,
+						A2($robinheghan$murmur3$Murmur3$multiplyBy, $robinheghan$murmur3$Murmur3$c1, k1))))) + 3864292196;
+	});
+var $robinheghan$murmur3$Murmur3$hashFold = F2(
+	function (c, data) {
+		var res = data.hash | ((255 & $elm$core$Char$toCode(c)) << data.shift);
+		var _v0 = data.shift;
+		if (_v0 === 24) {
+			return {
+				charsProcessed: data.charsProcessed + 1,
+				hash: 0,
+				seed: A2($robinheghan$murmur3$Murmur3$mix, data.seed, res),
+				shift: 0
+			};
+		} else {
+			return {charsProcessed: data.charsProcessed + 1, hash: res, seed: data.seed, shift: data.shift + 8};
+		}
+	});
+var $robinheghan$murmur3$Murmur3$hashString = F2(
+	function (seed, str) {
+		return $robinheghan$murmur3$Murmur3$finalize(
+			A3(
+				$elm$core$String$foldl,
+				$robinheghan$murmur3$Murmur3$hashFold,
+				A4($robinheghan$murmur3$Murmur3$HashData, 0, seed, 0, 0),
+				str));
+	});
+var $rtfeldman$elm_css$Hash$initialSeed = 15739;
+var $elm$core$String$fromList = _String_fromList;
+var $elm$core$Basics$modBy = _Basics_modBy;
+var $rtfeldman$elm_hex$Hex$unsafeToDigit = function (num) {
+	unsafeToDigit:
+	while (true) {
+		switch (num) {
+			case 0:
+				return _Utils_chr('0');
+			case 1:
+				return _Utils_chr('1');
+			case 2:
+				return _Utils_chr('2');
+			case 3:
+				return _Utils_chr('3');
+			case 4:
+				return _Utils_chr('4');
+			case 5:
+				return _Utils_chr('5');
+			case 6:
+				return _Utils_chr('6');
+			case 7:
+				return _Utils_chr('7');
+			case 8:
+				return _Utils_chr('8');
+			case 9:
+				return _Utils_chr('9');
+			case 10:
+				return _Utils_chr('a');
+			case 11:
+				return _Utils_chr('b');
+			case 12:
+				return _Utils_chr('c');
+			case 13:
+				return _Utils_chr('d');
+			case 14:
+				return _Utils_chr('e');
+			case 15:
+				return _Utils_chr('f');
+			default:
+				var $temp$num = num;
+				num = $temp$num;
+				continue unsafeToDigit;
+		}
+	}
+};
+var $rtfeldman$elm_hex$Hex$unsafePositiveToDigits = F2(
+	function (digits, num) {
+		unsafePositiveToDigits:
+		while (true) {
+			if (num < 16) {
+				return A2(
+					$elm$core$List$cons,
+					$rtfeldman$elm_hex$Hex$unsafeToDigit(num),
+					digits);
+			} else {
+				var $temp$digits = A2(
+					$elm$core$List$cons,
+					$rtfeldman$elm_hex$Hex$unsafeToDigit(
+						A2($elm$core$Basics$modBy, 16, num)),
+					digits),
+					$temp$num = (num / 16) | 0;
+				digits = $temp$digits;
+				num = $temp$num;
+				continue unsafePositiveToDigits;
+			}
+		}
+	});
+var $rtfeldman$elm_hex$Hex$toString = function (num) {
+	return $elm$core$String$fromList(
+		(num < 0) ? A2(
+			$elm$core$List$cons,
+			_Utils_chr('-'),
+			A2($rtfeldman$elm_hex$Hex$unsafePositiveToDigits, _List_Nil, -num)) : A2($rtfeldman$elm_hex$Hex$unsafePositiveToDigits, _List_Nil, num));
+};
+var $rtfeldman$elm_css$Hash$fromString = function (str) {
+	return A2(
+		$elm$core$String$cons,
+		_Utils_chr('_'),
+		$rtfeldman$elm_hex$Hex$toString(
+			A2($robinheghan$murmur3$Murmur3$hashString, $rtfeldman$elm_css$Hash$initialSeed, str)));
+};
+var $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles = F2(
+	function (_v0, styles) {
+		var isCssStyles = _v0.b;
+		var cssTemplate = _v0.c;
+		if (isCssStyles) {
+			var _v1 = A2($elm$core$Dict$get, cssTemplate, styles);
+			if (_v1.$ === 'Just') {
+				return styles;
+			} else {
+				return A3(
+					$elm$core$Dict$insert,
+					cssTemplate,
+					$rtfeldman$elm_css$Hash$fromString(cssTemplate),
+					styles);
+			}
+		} else {
+			return styles;
+		}
+	});
+var $elm$virtual_dom$VirtualDom$property = F2(
+	function (key, value) {
+		return A2(
+			_VirtualDom_property,
+			_VirtualDom_noInnerHtmlOrFormAction(key),
+			_VirtualDom_noJavaScriptOrHtmlJson(value));
+	});
+var $rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttribute = F2(
+	function (styles, _v0) {
+		var val = _v0.a;
+		var isCssStyles = _v0.b;
+		var cssTemplate = _v0.c;
+		if (isCssStyles) {
+			var _v1 = A2($elm$core$Dict$get, cssTemplate, styles);
+			if (_v1.$ === 'Just') {
+				var classname = _v1.a;
+				return A2(
+					$elm$virtual_dom$VirtualDom$property,
+					'className',
+					$elm$json$Json$Encode$string(classname));
+			} else {
+				return A2(
+					$elm$virtual_dom$VirtualDom$property,
+					'className',
+					$elm$json$Json$Encode$string('_unstyled'));
+			}
+		} else {
+			return val;
+		}
+	});
+var $elm$virtual_dom$VirtualDom$attribute = F2(
+	function (key, value) {
+		return A2(
+			_VirtualDom_attribute,
+			_VirtualDom_noOnOrFormAction(key),
+			_VirtualDom_noJavaScriptOrHtmlUri(value));
+	});
+var $rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttributeNS = F2(
+	function (styles, _v0) {
+		var val = _v0.a;
+		var isCssStyles = _v0.b;
+		var cssTemplate = _v0.c;
+		if (isCssStyles) {
+			var _v1 = A2($elm$core$Dict$get, cssTemplate, styles);
+			if (_v1.$ === 'Just') {
+				var classname = _v1.a;
+				return A2($elm$virtual_dom$VirtualDom$attribute, 'class', classname);
+			} else {
+				return A2($elm$virtual_dom$VirtualDom$attribute, 'class', '_unstyled');
+			}
+		} else {
+			return val;
+		}
+	});
+var $elm$virtual_dom$VirtualDom$keyedNode = function (tag) {
+	return _VirtualDom_keyedNode(
+		_VirtualDom_noScript(tag));
+};
+var $elm$virtual_dom$VirtualDom$keyedNodeNS = F2(
+	function (namespace, tag) {
+		return A2(
+			_VirtualDom_keyedNodeNS,
+			namespace,
+			_VirtualDom_noScript(tag));
+	});
+var $elm$virtual_dom$VirtualDom$node = function (tag) {
+	return _VirtualDom_node(
+		_VirtualDom_noScript(tag));
+};
+var $elm$virtual_dom$VirtualDom$nodeNS = F2(
+	function (namespace, tag) {
+		return A2(
+			_VirtualDom_nodeNS,
+			namespace,
+			_VirtualDom_noScript(tag));
+	});
+var $rtfeldman$elm_css$VirtualDom$Styled$accumulateKeyedStyledHtml = F2(
+	function (_v6, _v7) {
+		var key = _v6.a;
+		var html = _v6.b;
+		var pairs = _v7.a;
+		var styles = _v7.b;
+		switch (html.$) {
+			case 'Unstyled':
+				var vdom = html.a;
+				return _Utils_Tuple2(
+					A2(
+						$elm$core$List$cons,
+						_Utils_Tuple2(key, vdom),
+						pairs),
+					styles);
+			case 'Node':
+				var elemType = html.a;
+				var properties = html.b;
+				var children = html.c;
+				var combinedStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, styles, properties);
+				var _v9 = A3(
+					$elm$core$List$foldl,
+					$rtfeldman$elm_css$VirtualDom$Styled$accumulateStyledHtml,
+					_Utils_Tuple2(_List_Nil, combinedStyles),
+					children);
+				var childNodes = _v9.a;
+				var finalStyles = _v9.b;
+				var vdom = A3(
+					$elm$virtual_dom$VirtualDom$node,
+					elemType,
+					A2(
+						$elm$core$List$map,
+						$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttribute(finalStyles),
+						properties),
+					$elm$core$List$reverse(childNodes));
+				return _Utils_Tuple2(
+					A2(
+						$elm$core$List$cons,
+						_Utils_Tuple2(key, vdom),
+						pairs),
+					finalStyles);
+			case 'NodeNS':
+				var ns = html.a;
+				var elemType = html.b;
+				var properties = html.c;
+				var children = html.d;
+				var combinedStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, styles, properties);
+				var _v10 = A3(
+					$elm$core$List$foldl,
+					$rtfeldman$elm_css$VirtualDom$Styled$accumulateStyledHtml,
+					_Utils_Tuple2(_List_Nil, combinedStyles),
+					children);
+				var childNodes = _v10.a;
+				var finalStyles = _v10.b;
+				var vdom = A4(
+					$elm$virtual_dom$VirtualDom$nodeNS,
+					ns,
+					elemType,
+					A2(
+						$elm$core$List$map,
+						$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttribute(finalStyles),
+						properties),
+					$elm$core$List$reverse(childNodes));
+				return _Utils_Tuple2(
+					A2(
+						$elm$core$List$cons,
+						_Utils_Tuple2(key, vdom),
+						pairs),
+					finalStyles);
+			case 'KeyedNode':
+				var elemType = html.a;
+				var properties = html.b;
+				var children = html.c;
+				var combinedStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, styles, properties);
+				var _v11 = A3(
+					$elm$core$List$foldl,
+					$rtfeldman$elm_css$VirtualDom$Styled$accumulateKeyedStyledHtml,
+					_Utils_Tuple2(_List_Nil, combinedStyles),
+					children);
+				var childNodes = _v11.a;
+				var finalStyles = _v11.b;
+				var vdom = A3(
+					$elm$virtual_dom$VirtualDom$keyedNode,
+					elemType,
+					A2(
+						$elm$core$List$map,
+						$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttribute(finalStyles),
+						properties),
+					$elm$core$List$reverse(childNodes));
+				return _Utils_Tuple2(
+					A2(
+						$elm$core$List$cons,
+						_Utils_Tuple2(key, vdom),
+						pairs),
+					finalStyles);
+			default:
+				var ns = html.a;
+				var elemType = html.b;
+				var properties = html.c;
+				var children = html.d;
+				var combinedStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, styles, properties);
+				var _v12 = A3(
+					$elm$core$List$foldl,
+					$rtfeldman$elm_css$VirtualDom$Styled$accumulateKeyedStyledHtml,
+					_Utils_Tuple2(_List_Nil, combinedStyles),
+					children);
+				var childNodes = _v12.a;
+				var finalStyles = _v12.b;
+				var vdom = A4(
+					$elm$virtual_dom$VirtualDom$keyedNodeNS,
+					ns,
+					elemType,
+					A2(
+						$elm$core$List$map,
+						$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttribute(finalStyles),
+						properties),
+					$elm$core$List$reverse(childNodes));
+				return _Utils_Tuple2(
+					A2(
+						$elm$core$List$cons,
+						_Utils_Tuple2(key, vdom),
+						pairs),
+					finalStyles);
+		}
+	});
+var $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyledHtml = F2(
+	function (html, _v0) {
+		var nodes = _v0.a;
+		var styles = _v0.b;
+		switch (html.$) {
+			case 'Unstyled':
+				var vdomNode = html.a;
+				return _Utils_Tuple2(
+					A2($elm$core$List$cons, vdomNode, nodes),
+					styles);
+			case 'Node':
+				var elemType = html.a;
+				var properties = html.b;
+				var children = html.c;
+				var combinedStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, styles, properties);
+				var _v2 = A3(
+					$elm$core$List$foldl,
+					$rtfeldman$elm_css$VirtualDom$Styled$accumulateStyledHtml,
+					_Utils_Tuple2(_List_Nil, combinedStyles),
+					children);
+				var childNodes = _v2.a;
+				var finalStyles = _v2.b;
+				var vdomNode = A3(
+					$elm$virtual_dom$VirtualDom$node,
+					elemType,
+					A2(
+						$elm$core$List$map,
+						$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttribute(finalStyles),
+						properties),
+					$elm$core$List$reverse(childNodes));
+				return _Utils_Tuple2(
+					A2($elm$core$List$cons, vdomNode, nodes),
+					finalStyles);
+			case 'NodeNS':
+				var ns = html.a;
+				var elemType = html.b;
+				var properties = html.c;
+				var children = html.d;
+				var combinedStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, styles, properties);
+				var _v3 = A3(
+					$elm$core$List$foldl,
+					$rtfeldman$elm_css$VirtualDom$Styled$accumulateStyledHtml,
+					_Utils_Tuple2(_List_Nil, combinedStyles),
+					children);
+				var childNodes = _v3.a;
+				var finalStyles = _v3.b;
+				var vdomNode = A4(
+					$elm$virtual_dom$VirtualDom$nodeNS,
+					ns,
+					elemType,
+					A2(
+						$elm$core$List$map,
+						$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttributeNS(finalStyles),
+						properties),
+					$elm$core$List$reverse(childNodes));
+				return _Utils_Tuple2(
+					A2($elm$core$List$cons, vdomNode, nodes),
+					finalStyles);
+			case 'KeyedNode':
+				var elemType = html.a;
+				var properties = html.b;
+				var children = html.c;
+				var combinedStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, styles, properties);
+				var _v4 = A3(
+					$elm$core$List$foldl,
+					$rtfeldman$elm_css$VirtualDom$Styled$accumulateKeyedStyledHtml,
+					_Utils_Tuple2(_List_Nil, combinedStyles),
+					children);
+				var childNodes = _v4.a;
+				var finalStyles = _v4.b;
+				var vdomNode = A3(
+					$elm$virtual_dom$VirtualDom$keyedNode,
+					elemType,
+					A2(
+						$elm$core$List$map,
+						$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttribute(finalStyles),
+						properties),
+					$elm$core$List$reverse(childNodes));
+				return _Utils_Tuple2(
+					A2($elm$core$List$cons, vdomNode, nodes),
+					finalStyles);
+			default:
+				var ns = html.a;
+				var elemType = html.b;
+				var properties = html.c;
+				var children = html.d;
+				var combinedStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, styles, properties);
+				var _v5 = A3(
+					$elm$core$List$foldl,
+					$rtfeldman$elm_css$VirtualDom$Styled$accumulateKeyedStyledHtml,
+					_Utils_Tuple2(_List_Nil, combinedStyles),
+					children);
+				var childNodes = _v5.a;
+				var finalStyles = _v5.b;
+				var vdomNode = A4(
+					$elm$virtual_dom$VirtualDom$keyedNodeNS,
+					ns,
+					elemType,
+					A2(
+						$elm$core$List$map,
+						$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttributeNS(finalStyles),
+						properties),
+					$elm$core$List$reverse(childNodes));
+				return _Utils_Tuple2(
+					A2($elm$core$List$cons, vdomNode, nodes),
+					finalStyles);
+		}
+	});
+var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
+var $elm$core$Dict$foldl = F3(
+	function (func, acc, dict) {
+		foldl:
+		while (true) {
+			if (dict.$ === 'RBEmpty_elm_builtin') {
+				return acc;
+			} else {
+				var key = dict.b;
+				var value = dict.c;
+				var left = dict.d;
+				var right = dict.e;
+				var $temp$func = func,
+					$temp$acc = A3(
+					func,
+					key,
+					value,
+					A3($elm$core$Dict$foldl, func, acc, left)),
+					$temp$dict = right;
+				func = $temp$func;
+				acc = $temp$acc;
+				dict = $temp$dict;
+				continue foldl;
+			}
+		}
+	});
+var $rtfeldman$elm_css$VirtualDom$Styled$classnameStandin = '\u0007';
+var $elm$core$String$replace = F3(
+	function (before, after, string) {
+		return A2(
+			$elm$core$String$join,
+			after,
+			A2($elm$core$String$split, before, string));
+	});
+var $rtfeldman$elm_css$VirtualDom$Styled$styleToDeclaration = F3(
+	function (template, classname, declaration) {
+		return declaration + ('\n' + A3($elm$core$String$replace, $rtfeldman$elm_css$VirtualDom$Styled$classnameStandin, classname, template));
+	});
+var $rtfeldman$elm_css$VirtualDom$Styled$toDeclaration = function (dict) {
+	return A3($elm$core$Dict$foldl, $rtfeldman$elm_css$VirtualDom$Styled$styleToDeclaration, '', dict);
+};
+var $rtfeldman$elm_css$VirtualDom$Styled$toScopedDeclaration = F2(
+	function (scopingPrefix, dict) {
+		return A3(
+			$elm$core$Dict$foldl,
+			F3(
+				function (template, classname, declaration) {
+					return declaration + ('\n' + A3($elm$core$String$replace, '.' + $rtfeldman$elm_css$VirtualDom$Styled$classnameStandin, '#' + (scopingPrefix + ('.' + classname)), template));
+				}),
+			'',
+			dict);
+	});
+var $rtfeldman$elm_css$VirtualDom$Styled$toStyleNode = F2(
+	function (maybeNonce, accumulatedStyles) {
+		var cssText = function () {
+			if (accumulatedStyles.$ === 'UnscopedStyles') {
+				var allStyles = accumulatedStyles.a;
+				return $rtfeldman$elm_css$VirtualDom$Styled$toDeclaration(allStyles);
+			} else {
+				var scope = accumulatedStyles.a.a;
+				var rootStyles = accumulatedStyles.b;
+				var descendantStyles = accumulatedStyles.c;
+				return A2($rtfeldman$elm_css$VirtualDom$Styled$toScopedDeclaration, scope, rootStyles) + ('\n' + A2($rtfeldman$elm_css$VirtualDom$Styled$toScopedDeclaration, scope + ' ', descendantStyles));
+			}
+		}();
+		return A3(
+			$elm$virtual_dom$VirtualDom$node,
+			'span',
+			_List_fromArray(
+				[
+					A2($elm$virtual_dom$VirtualDom$attribute, 'style', 'display: none;'),
+					A2($elm$virtual_dom$VirtualDom$attribute, 'class', 'elm-css-style-wrapper')
+				]),
+			_List_fromArray(
+				[
+					A3(
+					$elm$virtual_dom$VirtualDom$node,
+					'style',
+					function () {
+						if (maybeNonce.$ === 'Just') {
+							var nonce = maybeNonce.a.a;
+							return _List_fromArray(
+								[
+									A2($elm$virtual_dom$VirtualDom$attribute, 'nonce', nonce)
+								]);
+						} else {
+							return _List_Nil;
+						}
+					}(),
+					$elm$core$List$singleton(
+						$elm$virtual_dom$VirtualDom$text(cssText)))
+				]));
+	});
+var $rtfeldman$elm_css$VirtualDom$Styled$unstyle = F4(
+	function (maybeNonce, elemType, properties, children) {
+		var initialStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, $elm$core$Dict$empty, properties);
+		var _v0 = A3(
+			$elm$core$List$foldl,
+			$rtfeldman$elm_css$VirtualDom$Styled$accumulateStyledHtml,
+			_Utils_Tuple2(_List_Nil, initialStyles),
+			children);
+		var childNodes = _v0.a;
+		var styles = _v0.b;
+		var styleNode = A2(
+			$rtfeldman$elm_css$VirtualDom$Styled$toStyleNode,
+			maybeNonce,
+			$rtfeldman$elm_css$VirtualDom$Styled$UnscopedStyles(styles));
+		var unstyledProperties = A2(
+			$elm$core$List$map,
+			$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttribute(styles),
+			properties);
+		return A3(
+			$elm$virtual_dom$VirtualDom$node,
+			elemType,
+			unstyledProperties,
+			A2(
+				$elm$core$List$cons,
+				styleNode,
+				$elm$core$List$reverse(childNodes)));
+	});
+var $rtfeldman$elm_css$VirtualDom$Styled$containsKey = F2(
+	function (key, pairs) {
+		containsKey:
+		while (true) {
+			if (!pairs.b) {
+				return false;
+			} else {
+				var _v1 = pairs.a;
+				var str = _v1.a;
+				var rest = pairs.b;
+				if (_Utils_eq(key, str)) {
+					return true;
+				} else {
+					var $temp$key = key,
+						$temp$pairs = rest;
+					key = $temp$key;
+					pairs = $temp$pairs;
+					continue containsKey;
+				}
+			}
+		}
+	});
+var $rtfeldman$elm_css$VirtualDom$Styled$getUnusedKey = F2(
+	function (_default, pairs) {
+		getUnusedKey:
+		while (true) {
+			if (!pairs.b) {
+				return _default;
+			} else {
+				var _v1 = pairs.a;
+				var firstKey = _v1.a;
+				var rest = pairs.b;
+				var newKey = '_' + firstKey;
+				if (A2($rtfeldman$elm_css$VirtualDom$Styled$containsKey, newKey, rest)) {
+					var $temp$default = newKey,
+						$temp$pairs = rest;
+					_default = $temp$default;
+					pairs = $temp$pairs;
+					continue getUnusedKey;
+				} else {
+					return newKey;
+				}
+			}
+		}
+	});
+var $rtfeldman$elm_css$VirtualDom$Styled$toKeyedStyleNode = F3(
+	function (maybeNonce, accumulatedStyles, keyedChildNodes) {
+		var styleNodeKey = A2($rtfeldman$elm_css$VirtualDom$Styled$getUnusedKey, '_', keyedChildNodes);
+		var finalNode = A2($rtfeldman$elm_css$VirtualDom$Styled$toStyleNode, maybeNonce, accumulatedStyles);
+		return _Utils_Tuple2(styleNodeKey, finalNode);
+	});
+var $rtfeldman$elm_css$VirtualDom$Styled$unstyleKeyed = F4(
+	function (maybeNonce, elemType, properties, keyedChildren) {
+		var initialStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, $elm$core$Dict$empty, properties);
+		var _v0 = A3(
+			$elm$core$List$foldl,
+			$rtfeldman$elm_css$VirtualDom$Styled$accumulateKeyedStyledHtml,
+			_Utils_Tuple2(_List_Nil, initialStyles),
+			keyedChildren);
+		var keyedChildNodes = _v0.a;
+		var styles = _v0.b;
+		var keyedStyleNode = A3(
+			$rtfeldman$elm_css$VirtualDom$Styled$toKeyedStyleNode,
+			maybeNonce,
+			$rtfeldman$elm_css$VirtualDom$Styled$UnscopedStyles(styles),
+			keyedChildNodes);
+		var unstyledProperties = A2(
+			$elm$core$List$map,
+			$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttribute(styles),
+			properties);
+		return A3(
+			$elm$virtual_dom$VirtualDom$keyedNode,
+			elemType,
+			unstyledProperties,
+			A2(
+				$elm$core$List$cons,
+				keyedStyleNode,
+				$elm$core$List$reverse(keyedChildNodes)));
+	});
+var $rtfeldman$elm_css$VirtualDom$Styled$unstyleKeyedNS = F5(
+	function (maybeNonce, ns, elemType, properties, keyedChildren) {
+		var initialStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, $elm$core$Dict$empty, properties);
+		var _v0 = A3(
+			$elm$core$List$foldl,
+			$rtfeldman$elm_css$VirtualDom$Styled$accumulateKeyedStyledHtml,
+			_Utils_Tuple2(_List_Nil, initialStyles),
+			keyedChildren);
+		var keyedChildNodes = _v0.a;
+		var styles = _v0.b;
+		var keyedStyleNode = A3(
+			$rtfeldman$elm_css$VirtualDom$Styled$toKeyedStyleNode,
+			maybeNonce,
+			$rtfeldman$elm_css$VirtualDom$Styled$UnscopedStyles(styles),
+			keyedChildNodes);
+		var unstyledProperties = A2(
+			$elm$core$List$map,
+			$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttributeNS(styles),
+			properties);
+		return A4(
+			$elm$virtual_dom$VirtualDom$keyedNodeNS,
+			ns,
+			elemType,
+			unstyledProperties,
+			A2(
+				$elm$core$List$cons,
+				keyedStyleNode,
+				$elm$core$List$reverse(keyedChildNodes)));
+	});
+var $rtfeldman$elm_css$VirtualDom$Styled$unstyleNS = F5(
+	function (maybeNonce, ns, elemType, properties, children) {
+		var initialStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, $elm$core$Dict$empty, properties);
+		var _v0 = A3(
+			$elm$core$List$foldl,
+			$rtfeldman$elm_css$VirtualDom$Styled$accumulateStyledHtml,
+			_Utils_Tuple2(_List_Nil, initialStyles),
+			children);
+		var childNodes = _v0.a;
+		var styles = _v0.b;
+		var styleNode = A2(
+			$rtfeldman$elm_css$VirtualDom$Styled$toStyleNode,
+			maybeNonce,
+			$rtfeldman$elm_css$VirtualDom$Styled$UnscopedStyles(styles));
+		var unstyledProperties = A2(
+			$elm$core$List$map,
+			$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttributeNS(styles),
+			properties);
+		return A4(
+			$elm$virtual_dom$VirtualDom$nodeNS,
+			ns,
+			elemType,
+			unstyledProperties,
+			A2(
+				$elm$core$List$cons,
+				styleNode,
+				$elm$core$List$reverse(childNodes)));
+	});
+var $rtfeldman$elm_css$VirtualDom$Styled$toUnstyled = function (vdom) {
+	switch (vdom.$) {
+		case 'Unstyled':
+			var plainNode = vdom.a;
+			return plainNode;
+		case 'Node':
+			var elemType = vdom.a;
+			var properties = vdom.b;
+			var children = vdom.c;
+			return A4($rtfeldman$elm_css$VirtualDom$Styled$unstyle, $elm$core$Maybe$Nothing, elemType, properties, children);
+		case 'NodeNS':
+			var ns = vdom.a;
+			var elemType = vdom.b;
+			var properties = vdom.c;
+			var children = vdom.d;
+			return A5($rtfeldman$elm_css$VirtualDom$Styled$unstyleNS, $elm$core$Maybe$Nothing, ns, elemType, properties, children);
+		case 'KeyedNode':
+			var elemType = vdom.a;
+			var properties = vdom.b;
+			var children = vdom.c;
+			return A4($rtfeldman$elm_css$VirtualDom$Styled$unstyleKeyed, $elm$core$Maybe$Nothing, elemType, properties, children);
+		default:
+			var ns = vdom.a;
+			var elemType = vdom.b;
+			var properties = vdom.c;
+			var children = vdom.d;
+			return A5($rtfeldman$elm_css$VirtualDom$Styled$unstyleKeyedNS, $elm$core$Maybe$Nothing, ns, elemType, properties, children);
+	}
+};
+var $rtfeldman$elm_css$Html$Styled$toUnstyled = $rtfeldman$elm_css$VirtualDom$Styled$toUnstyled;
+var $rtfeldman$elm_css$Css$Preprocess$AppendProperty = function (a) {
+	return {$: 'AppendProperty', a: a};
+};
+var $rtfeldman$elm_css$Css$Structure$Property = function (a) {
+	return {$: 'Property', a: a};
+};
+var $rtfeldman$elm_css$Css$property = F2(
+	function (key, value) {
+		return $rtfeldman$elm_css$Css$Preprocess$AppendProperty(
+			$rtfeldman$elm_css$Css$Structure$Property(key + (':' + value)));
+	});
+var $rtfeldman$elm_css$Css$prop1 = F2(
+	function (key, arg) {
+		return A2($rtfeldman$elm_css$Css$property, key, arg.value);
+	});
+var $rtfeldman$elm_css$Css$center = $rtfeldman$elm_css$Css$prop1('center');
+var $rtfeldman$elm_css$Css$Structure$Compatible = {$: 'Compatible'};
+var $rtfeldman$elm_css$Css$row = {flexDirection: $rtfeldman$elm_css$Css$Structure$Compatible, flexDirectionOrWrap: $rtfeldman$elm_css$Css$Structure$Compatible, value: 'row'};
+var $rtfeldman$elm_css$Css$column = _Utils_update(
+	$rtfeldman$elm_css$Css$row,
+	{value: 'column'});
+var $rtfeldman$elm_css$Css$displayFlex = A2($rtfeldman$elm_css$Css$property, 'display', 'flex');
+var $rtfeldman$elm_css$VirtualDom$Styled$Node = F3(
+	function (a, b, c) {
+		return {$: 'Node', a: a, b: b, c: c};
+	});
+var $rtfeldman$elm_css$VirtualDom$Styled$node = $rtfeldman$elm_css$VirtualDom$Styled$Node;
+var $rtfeldman$elm_css$Html$Styled$node = $rtfeldman$elm_css$VirtualDom$Styled$node;
+var $rtfeldman$elm_css$Html$Styled$div = $rtfeldman$elm_css$Html$Styled$node('div');
+var $rtfeldman$elm_css$Css$flexDirection = $rtfeldman$elm_css$Css$prop1('flex-direction');
+var $rtfeldman$elm_css$Css$flexGrow = $rtfeldman$elm_css$Css$prop1('flex-grow');
+var $rtfeldman$elm_css$Css$height = $rtfeldman$elm_css$Css$prop1('height');
+var $rtfeldman$elm_css$Css$Preprocess$ApplyStyles = function (a) {
+	return {$: 'ApplyStyles', a: a};
+};
+var $elm$core$List$head = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return $elm$core$Maybe$Just(x);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $rtfeldman$elm_css$Css$Internal$property = F2(
+	function (key, value) {
+		return $rtfeldman$elm_css$Css$Preprocess$AppendProperty(
+			$rtfeldman$elm_css$Css$Structure$Property(key + (':' + value)));
+	});
+var $rtfeldman$elm_css$Css$Internal$getOverloadedProperty = F3(
+	function (functionName, desiredKey, style) {
+		getOverloadedProperty:
+		while (true) {
+			switch (style.$) {
+				case 'AppendProperty':
+					var str = style.a.a;
+					var key = A2(
+						$elm$core$Maybe$withDefault,
+						'',
+						$elm$core$List$head(
+							A2($elm$core$String$split, ':', str)));
+					return A2($rtfeldman$elm_css$Css$Internal$property, desiredKey, key);
+				case 'ExtendSelector':
+					var selector = style.a;
+					return A2($rtfeldman$elm_css$Css$Internal$property, desiredKey, 'elm-css-error-cannot-apply-' + (functionName + '-with-inapplicable-Style-for-selector'));
+				case 'NestSnippet':
+					var combinator = style.a;
+					return A2($rtfeldman$elm_css$Css$Internal$property, desiredKey, 'elm-css-error-cannot-apply-' + (functionName + '-with-inapplicable-Style-for-combinator'));
+				case 'WithPseudoElement':
+					var pseudoElement = style.a;
+					return A2($rtfeldman$elm_css$Css$Internal$property, desiredKey, 'elm-css-error-cannot-apply-' + (functionName + '-with-inapplicable-Style-for-pseudo-element setter'));
+				case 'WithMedia':
+					return A2($rtfeldman$elm_css$Css$Internal$property, desiredKey, 'elm-css-error-cannot-apply-' + (functionName + '-with-inapplicable-Style-for-media-query'));
+				case 'WithKeyframes':
+					return A2($rtfeldman$elm_css$Css$Internal$property, desiredKey, 'elm-css-error-cannot-apply-' + (functionName + '-with-inapplicable-Style-for-keyframes'));
+				default:
+					if (!style.a.b) {
+						return A2($rtfeldman$elm_css$Css$Internal$property, desiredKey, 'elm-css-error-cannot-apply-' + (functionName + '-with-empty-Style'));
+					} else {
+						if (!style.a.b.b) {
+							var _v1 = style.a;
+							var only = _v1.a;
+							var $temp$functionName = functionName,
+								$temp$desiredKey = desiredKey,
+								$temp$style = only;
+							functionName = $temp$functionName;
+							desiredKey = $temp$desiredKey;
+							style = $temp$style;
+							continue getOverloadedProperty;
+						} else {
+							var _v2 = style.a;
+							var first = _v2.a;
+							var rest = _v2.b;
+							var $temp$functionName = functionName,
+								$temp$desiredKey = desiredKey,
+								$temp$style = $rtfeldman$elm_css$Css$Preprocess$ApplyStyles(rest);
+							functionName = $temp$functionName;
+							desiredKey = $temp$desiredKey;
+							style = $temp$style;
+							continue getOverloadedProperty;
+						}
+					}
+			}
+		}
+	});
+var $rtfeldman$elm_css$Css$Internal$IncompatibleUnits = {$: 'IncompatibleUnits'};
+var $elm$core$String$fromFloat = _String_fromNumber;
+var $rtfeldman$elm_css$Css$Internal$lengthConverter = F3(
+	function (units, unitLabel, numericValue) {
+		return {
+			absoluteLength: $rtfeldman$elm_css$Css$Structure$Compatible,
+			calc: $rtfeldman$elm_css$Css$Structure$Compatible,
+			flexBasis: $rtfeldman$elm_css$Css$Structure$Compatible,
+			fontSize: $rtfeldman$elm_css$Css$Structure$Compatible,
+			length: $rtfeldman$elm_css$Css$Structure$Compatible,
+			lengthOrAuto: $rtfeldman$elm_css$Css$Structure$Compatible,
+			lengthOrAutoOrCoverOrContain: $rtfeldman$elm_css$Css$Structure$Compatible,
+			lengthOrMinMaxDimension: $rtfeldman$elm_css$Css$Structure$Compatible,
+			lengthOrNone: $rtfeldman$elm_css$Css$Structure$Compatible,
+			lengthOrNoneOrMinMaxDimension: $rtfeldman$elm_css$Css$Structure$Compatible,
+			lengthOrNumber: $rtfeldman$elm_css$Css$Structure$Compatible,
+			lengthOrNumberOrAutoOrNoneOrContent: $rtfeldman$elm_css$Css$Structure$Compatible,
+			lineHeight: $rtfeldman$elm_css$Css$Structure$Compatible,
+			numericValue: numericValue,
+			textIndent: $rtfeldman$elm_css$Css$Structure$Compatible,
+			unitLabel: unitLabel,
+			units: units,
+			value: _Utils_ap(
+				$elm$core$String$fromFloat(numericValue),
+				unitLabel)
+		};
+	});
+var $rtfeldman$elm_css$Css$Internal$lengthForOverloadedProperty = A3($rtfeldman$elm_css$Css$Internal$lengthConverter, $rtfeldman$elm_css$Css$Internal$IncompatibleUnits, '', 0);
+var $rtfeldman$elm_css$Css$justifyContent = function (fn) {
+	return A3(
+		$rtfeldman$elm_css$Css$Internal$getOverloadedProperty,
+		'justifyContent',
+		'justify-content',
+		fn($rtfeldman$elm_css$Css$Internal$lengthForOverloadedProperty));
+};
+var $rtfeldman$elm_css$Css$UnitlessFloat = {$: 'UnitlessFloat'};
+var $rtfeldman$elm_css$Css$num = function (val) {
+	return {
+		lengthOrNumber: $rtfeldman$elm_css$Css$Structure$Compatible,
+		lengthOrNumberOrAutoOrNoneOrContent: $rtfeldman$elm_css$Css$Structure$Compatible,
+		lineHeight: $rtfeldman$elm_css$Css$Structure$Compatible,
+		number: $rtfeldman$elm_css$Css$Structure$Compatible,
+		numberOrInfinite: $rtfeldman$elm_css$Css$Structure$Compatible,
+		numericValue: val,
+		unitLabel: '',
+		units: $rtfeldman$elm_css$Css$UnitlessFloat,
+		value: $elm$core$String$fromFloat(val)
+	};
+};
+var $rtfeldman$elm_css$VirtualDom$Styled$Attribute = F3(
+	function (a, b, c) {
+		return {$: 'Attribute', a: a, b: b, c: c};
+	});
+var $elm$core$List$any = F2(
+	function (isOkay, list) {
+		any:
+		while (true) {
+			if (!list.b) {
+				return false;
+			} else {
+				var x = list.a;
+				var xs = list.b;
+				if (isOkay(x)) {
+					return true;
+				} else {
+					var $temp$isOkay = isOkay,
+						$temp$list = xs;
+					isOkay = $temp$isOkay;
+					list = $temp$list;
+					continue any;
+				}
+			}
+		}
+	});
+var $elm$core$Basics$composeL = F3(
+	function (g, f, x) {
+		return g(
+			f(x));
+	});
+var $elm$core$List$all = F2(
+	function (isOkay, list) {
+		return !A2(
+			$elm$core$List$any,
+			A2($elm$core$Basics$composeL, $elm$core$Basics$not, isOkay),
+			list);
+	});
 var $elm$core$List$isEmpty = function (xs) {
 	if (!xs.b) {
 		return true;
 	} else {
 		return false;
 	}
-};
-var $elm$core$String$isEmpty = function (string) {
-	return string === '';
 };
 var $rtfeldman$elm_css$Css$Structure$compactHelp = F2(
 	function (declaration, _v0) {
@@ -5782,7 +9549,6 @@ var $rtfeldman$elm_css$Css$Structure$compactHelp = F2(
 					A2($elm$core$List$cons, declaration, declarations));
 		}
 	});
-var $elm$core$Dict$empty = $elm$core$Dict$RBEmpty_elm_builtin;
 var $rtfeldman$elm_css$Css$Structure$Keyframes = function (a) {
 	return {$: 'Keyframes', a: a};
 };
@@ -5823,25 +9589,6 @@ var $rtfeldman$elm_css$Css$Structure$compactStylesheet = function (_v0) {
 		namespaces: namespaces
 	};
 };
-var $elm$core$Maybe$map = F2(
-	function (f, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return $elm$core$Maybe$Just(
-				f(value));
-		} else {
-			return $elm$core$Maybe$Nothing;
-		}
-	});
-var $elm$core$Maybe$withDefault = F2(
-	function (_default, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return value;
-		} else {
-			return _default;
-		}
-	});
 var $rtfeldman$elm_css$Css$Structure$Output$charsetToString = function (charset) {
 	return A2(
 		$elm$core$Maybe$withDefault,
@@ -5958,7 +9705,6 @@ var $rtfeldman$elm_css$Css$Structure$Output$emitProperties = function (propertie
 		'',
 		properties);
 };
-var $elm$core$String$append = _String_append;
 var $rtfeldman$elm_css$Css$Structure$Output$pseudoElementToString = function (_v0) {
 	var str = _v0.a;
 	return '::' + str;
@@ -6468,175 +10214,6 @@ var $rtfeldman$elm_css$Css$Structure$concatMapLastStyleBlock = F2(
 			first,
 			A2($rtfeldman$elm_css$Css$Structure$concatMapLastStyleBlock, update, rest));
 	});
-var $elm$core$String$cons = _String_cons;
-var $robinheghan$murmur3$Murmur3$HashData = F4(
-	function (shift, seed, hash, charsProcessed) {
-		return {charsProcessed: charsProcessed, hash: hash, seed: seed, shift: shift};
-	});
-var $robinheghan$murmur3$Murmur3$c1 = 3432918353;
-var $robinheghan$murmur3$Murmur3$c2 = 461845907;
-var $elm$core$Bitwise$and = _Bitwise_and;
-var $elm$core$Bitwise$shiftLeftBy = _Bitwise_shiftLeftBy;
-var $elm$core$Bitwise$shiftRightZfBy = _Bitwise_shiftRightZfBy;
-var $robinheghan$murmur3$Murmur3$multiplyBy = F2(
-	function (b, a) {
-		return ((a & 65535) * b) + ((((a >>> 16) * b) & 65535) << 16);
-	});
-var $elm$core$Basics$neq = _Utils_notEqual;
-var $elm$core$Bitwise$or = _Bitwise_or;
-var $robinheghan$murmur3$Murmur3$rotlBy = F2(
-	function (b, a) {
-		return (a << b) | (a >>> (32 - b));
-	});
-var $elm$core$Bitwise$xor = _Bitwise_xor;
-var $robinheghan$murmur3$Murmur3$finalize = function (data) {
-	var acc = (!(!data.hash)) ? (data.seed ^ A2(
-		$robinheghan$murmur3$Murmur3$multiplyBy,
-		$robinheghan$murmur3$Murmur3$c2,
-		A2(
-			$robinheghan$murmur3$Murmur3$rotlBy,
-			15,
-			A2($robinheghan$murmur3$Murmur3$multiplyBy, $robinheghan$murmur3$Murmur3$c1, data.hash)))) : data.seed;
-	var h0 = acc ^ data.charsProcessed;
-	var h1 = A2($robinheghan$murmur3$Murmur3$multiplyBy, 2246822507, h0 ^ (h0 >>> 16));
-	var h2 = A2($robinheghan$murmur3$Murmur3$multiplyBy, 3266489909, h1 ^ (h1 >>> 13));
-	return (h2 ^ (h2 >>> 16)) >>> 0;
-};
-var $elm$core$String$foldl = _String_foldl;
-var $robinheghan$murmur3$Murmur3$mix = F2(
-	function (h1, k1) {
-		return A2(
-			$robinheghan$murmur3$Murmur3$multiplyBy,
-			5,
-			A2(
-				$robinheghan$murmur3$Murmur3$rotlBy,
-				13,
-				h1 ^ A2(
-					$robinheghan$murmur3$Murmur3$multiplyBy,
-					$robinheghan$murmur3$Murmur3$c2,
-					A2(
-						$robinheghan$murmur3$Murmur3$rotlBy,
-						15,
-						A2($robinheghan$murmur3$Murmur3$multiplyBy, $robinheghan$murmur3$Murmur3$c1, k1))))) + 3864292196;
-	});
-var $robinheghan$murmur3$Murmur3$hashFold = F2(
-	function (c, data) {
-		var res = data.hash | ((255 & $elm$core$Char$toCode(c)) << data.shift);
-		var _v0 = data.shift;
-		if (_v0 === 24) {
-			return {
-				charsProcessed: data.charsProcessed + 1,
-				hash: 0,
-				seed: A2($robinheghan$murmur3$Murmur3$mix, data.seed, res),
-				shift: 0
-			};
-		} else {
-			return {charsProcessed: data.charsProcessed + 1, hash: res, seed: data.seed, shift: data.shift + 8};
-		}
-	});
-var $robinheghan$murmur3$Murmur3$hashString = F2(
-	function (seed, str) {
-		return $robinheghan$murmur3$Murmur3$finalize(
-			A3(
-				$elm$core$String$foldl,
-				$robinheghan$murmur3$Murmur3$hashFold,
-				A4($robinheghan$murmur3$Murmur3$HashData, 0, seed, 0, 0),
-				str));
-	});
-var $rtfeldman$elm_css$Hash$initialSeed = 15739;
-var $elm$core$String$fromList = _String_fromList;
-var $elm$core$Basics$negate = function (n) {
-	return -n;
-};
-var $elm$core$Basics$modBy = _Basics_modBy;
-var $rtfeldman$elm_hex$Hex$unsafeToDigit = function (num) {
-	unsafeToDigit:
-	while (true) {
-		switch (num) {
-			case 0:
-				return _Utils_chr('0');
-			case 1:
-				return _Utils_chr('1');
-			case 2:
-				return _Utils_chr('2');
-			case 3:
-				return _Utils_chr('3');
-			case 4:
-				return _Utils_chr('4');
-			case 5:
-				return _Utils_chr('5');
-			case 6:
-				return _Utils_chr('6');
-			case 7:
-				return _Utils_chr('7');
-			case 8:
-				return _Utils_chr('8');
-			case 9:
-				return _Utils_chr('9');
-			case 10:
-				return _Utils_chr('a');
-			case 11:
-				return _Utils_chr('b');
-			case 12:
-				return _Utils_chr('c');
-			case 13:
-				return _Utils_chr('d');
-			case 14:
-				return _Utils_chr('e');
-			case 15:
-				return _Utils_chr('f');
-			default:
-				var $temp$num = num;
-				num = $temp$num;
-				continue unsafeToDigit;
-		}
-	}
-};
-var $rtfeldman$elm_hex$Hex$unsafePositiveToDigits = F2(
-	function (digits, num) {
-		unsafePositiveToDigits:
-		while (true) {
-			if (num < 16) {
-				return A2(
-					$elm$core$List$cons,
-					$rtfeldman$elm_hex$Hex$unsafeToDigit(num),
-					digits);
-			} else {
-				var $temp$digits = A2(
-					$elm$core$List$cons,
-					$rtfeldman$elm_hex$Hex$unsafeToDigit(
-						A2($elm$core$Basics$modBy, 16, num)),
-					digits),
-					$temp$num = (num / 16) | 0;
-				digits = $temp$digits;
-				num = $temp$num;
-				continue unsafePositiveToDigits;
-			}
-		}
-	});
-var $rtfeldman$elm_hex$Hex$toString = function (num) {
-	return $elm$core$String$fromList(
-		(num < 0) ? A2(
-			$elm$core$List$cons,
-			_Utils_chr('-'),
-			A2($rtfeldman$elm_hex$Hex$unsafePositiveToDigits, _List_Nil, -num)) : A2($rtfeldman$elm_hex$Hex$unsafePositiveToDigits, _List_Nil, num));
-};
-var $rtfeldman$elm_css$Hash$fromString = function (str) {
-	return A2(
-		$elm$core$String$cons,
-		_Utils_chr('_'),
-		$rtfeldman$elm_hex$Hex$toString(
-			A2($robinheghan$murmur3$Murmur3$hashString, $rtfeldman$elm_css$Hash$initialSeed, str)));
-};
-var $elm$core$List$head = function (list) {
-	if (list.b) {
-		var x = list.a;
-		var xs = list.b;
-		return $elm$core$Maybe$Just(x);
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
-};
 var $rtfeldman$elm_css$Css$Preprocess$Resolve$last = function (list) {
 	last:
 	while (true) {
@@ -6714,10 +10291,6 @@ var $rtfeldman$elm_css$Css$Preprocess$Resolve$resolveFontFeatureValues = functio
 		[
 			$rtfeldman$elm_css$Css$Structure$FontFeatureValues(newTuples)
 		]);
-};
-var $elm$core$List$singleton = function (value) {
-	return _List_fromArray(
-		[value]);
 };
 var $rtfeldman$elm_css$Css$Structure$styleBlockToMediaRule = F2(
 	function (mediaQueries, declaration) {
@@ -7322,7 +10895,6 @@ var $rtfeldman$elm_css$Css$Preprocess$stylesheet = function (snippets) {
 var $rtfeldman$elm_css$Css$Structure$ClassSelector = function (a) {
 	return {$: 'ClassSelector', a: a};
 };
-var $rtfeldman$elm_css$VirtualDom$Styled$classnameStandin = '\u0007';
 var $rtfeldman$elm_css$VirtualDom$Styled$templateSelector = $rtfeldman$elm_css$Css$Structure$UniversalSelectorSequence(
 	_List_fromArray(
 		[
@@ -7356,162 +10928,35 @@ var $rtfeldman$elm_css$Html$Styled$styled = F4(
 				attrs),
 			children);
 	});
-var $author$project$App$Flex$filler = {
-	init: _Utils_Tuple2(_Utils_Tuple0, $elm$core$Platform$Cmd$none),
-	update: F2(
-		function (_v0, _v1) {
-			return _Utils_Tuple2(_Utils_Tuple0, $elm$core$Platform$Cmd$none);
-		}),
-	view: function (_v2) {
-		return _List_fromArray(
-			[
-				A4(
-				$rtfeldman$elm_css$Html$Styled$styled,
-				$rtfeldman$elm_css$Html$Styled$div,
-				_List_fromArray(
-					[
-						$rtfeldman$elm_css$Css$flexGrow(
-						$rtfeldman$elm_css$Css$num(1))
-					]),
-				_List_Nil,
-				_List_Nil)
-			]);
-	}
+var $rtfeldman$elm_css$Css$VhUnits = {$: 'VhUnits'};
+var $rtfeldman$elm_css$Css$vh = A2($rtfeldman$elm_css$Css$Internal$lengthConverter, $rtfeldman$elm_css$Css$VhUnits, 'vh');
+var $author$project$Main$EditAlbum = function (a) {
+	return {$: 'EditAlbum', a: a};
 };
-var $author$project$Main$Msg = function (a) {
-	return {$: 'Msg', a: a};
+var $author$project$Main$PlaySong = function (a) {
+	return {$: 'PlaySong', a: a};
 };
-var $author$project$App$Switch$StartA = function (a) {
-	return {$: 'StartA', a: a};
+var $author$project$Main$UpdateAlbum = function (a) {
+	return {$: 'UpdateAlbum', a: a};
 };
-var $author$project$Album$App$Model = function (a) {
-	return {$: 'Model', a: a};
+var $author$project$Main$ViewAlbum = function (a) {
+	return {$: 'ViewAlbum', a: a};
 };
-var $elm$core$Basics$never = function (_v0) {
-	never:
-	while (true) {
-		var nvr = _v0.a;
-		var $temp$_v0 = nvr;
-		_v0 = $temp$_v0;
-		continue never;
-	}
-};
-var $author$project$Album$App$update = F2(
-	function (i, _v0) {
-		var album = _v0.a;
-		var never = i.a;
-		return $elm$core$Basics$never(never);
-	});
 var $rtfeldman$elm_css$Css$prop3 = F4(
 	function (key, argA, argB, argC) {
 		return A2($rtfeldman$elm_css$Css$property, key, argA.value + (' ' + (argB.value + (' ' + argC.value))));
 	});
 var $rtfeldman$elm_css$Css$border3 = $rtfeldman$elm_css$Css$prop3('border');
-var $rtfeldman$elm_css$Css$center = $rtfeldman$elm_css$Css$prop1('center');
-var $rtfeldman$elm_css$Css$displayFlex = A2($rtfeldman$elm_css$Css$property, 'display', 'flex');
 var $rtfeldman$elm_css$Css$EmUnits = {$: 'EmUnits'};
-var $rtfeldman$elm_css$Css$Internal$lengthConverter = F3(
-	function (units, unitLabel, numericValue) {
-		return {
-			absoluteLength: $rtfeldman$elm_css$Css$Structure$Compatible,
-			calc: $rtfeldman$elm_css$Css$Structure$Compatible,
-			flexBasis: $rtfeldman$elm_css$Css$Structure$Compatible,
-			fontSize: $rtfeldman$elm_css$Css$Structure$Compatible,
-			length: $rtfeldman$elm_css$Css$Structure$Compatible,
-			lengthOrAuto: $rtfeldman$elm_css$Css$Structure$Compatible,
-			lengthOrAutoOrCoverOrContain: $rtfeldman$elm_css$Css$Structure$Compatible,
-			lengthOrMinMaxDimension: $rtfeldman$elm_css$Css$Structure$Compatible,
-			lengthOrNone: $rtfeldman$elm_css$Css$Structure$Compatible,
-			lengthOrNoneOrMinMaxDimension: $rtfeldman$elm_css$Css$Structure$Compatible,
-			lengthOrNumber: $rtfeldman$elm_css$Css$Structure$Compatible,
-			lengthOrNumberOrAutoOrNoneOrContent: $rtfeldman$elm_css$Css$Structure$Compatible,
-			lineHeight: $rtfeldman$elm_css$Css$Structure$Compatible,
-			numericValue: numericValue,
-			textIndent: $rtfeldman$elm_css$Css$Structure$Compatible,
-			unitLabel: unitLabel,
-			units: units,
-			value: _Utils_ap(
-				$elm$core$String$fromFloat(numericValue),
-				unitLabel)
-		};
-	});
 var $rtfeldman$elm_css$Css$em = A2($rtfeldman$elm_css$Css$Internal$lengthConverter, $rtfeldman$elm_css$Css$EmUnits, 'em');
 var $rtfeldman$elm_css$Css$fontSize = $rtfeldman$elm_css$Css$prop1('font-size');
-var $rtfeldman$elm_css$Css$Preprocess$ApplyStyles = function (a) {
-	return {$: 'ApplyStyles', a: a};
+var $rtfeldman$elm_css$Html$Styled$form = $rtfeldman$elm_css$Html$Styled$node('form');
+var $rtfeldman$elm_css$Html$Styled$input = $rtfeldman$elm_css$Html$Styled$node('input');
+var $rtfeldman$elm_css$Html$Styled$Events$alwaysStop = function (x) {
+	return _Utils_Tuple2(x, true);
 };
-var $rtfeldman$elm_css$Css$Internal$property = F2(
-	function (key, value) {
-		return $rtfeldman$elm_css$Css$Preprocess$AppendProperty(
-			$rtfeldman$elm_css$Css$Structure$Property(key + (':' + value)));
-	});
-var $rtfeldman$elm_css$Css$Internal$getOverloadedProperty = F3(
-	function (functionName, desiredKey, style) {
-		getOverloadedProperty:
-		while (true) {
-			switch (style.$) {
-				case 'AppendProperty':
-					var str = style.a.a;
-					var key = A2(
-						$elm$core$Maybe$withDefault,
-						'',
-						$elm$core$List$head(
-							A2($elm$core$String$split, ':', str)));
-					return A2($rtfeldman$elm_css$Css$Internal$property, desiredKey, key);
-				case 'ExtendSelector':
-					var selector = style.a;
-					return A2($rtfeldman$elm_css$Css$Internal$property, desiredKey, 'elm-css-error-cannot-apply-' + (functionName + '-with-inapplicable-Style-for-selector'));
-				case 'NestSnippet':
-					var combinator = style.a;
-					return A2($rtfeldman$elm_css$Css$Internal$property, desiredKey, 'elm-css-error-cannot-apply-' + (functionName + '-with-inapplicable-Style-for-combinator'));
-				case 'WithPseudoElement':
-					var pseudoElement = style.a;
-					return A2($rtfeldman$elm_css$Css$Internal$property, desiredKey, 'elm-css-error-cannot-apply-' + (functionName + '-with-inapplicable-Style-for-pseudo-element setter'));
-				case 'WithMedia':
-					return A2($rtfeldman$elm_css$Css$Internal$property, desiredKey, 'elm-css-error-cannot-apply-' + (functionName + '-with-inapplicable-Style-for-media-query'));
-				case 'WithKeyframes':
-					return A2($rtfeldman$elm_css$Css$Internal$property, desiredKey, 'elm-css-error-cannot-apply-' + (functionName + '-with-inapplicable-Style-for-keyframes'));
-				default:
-					if (!style.a.b) {
-						return A2($rtfeldman$elm_css$Css$Internal$property, desiredKey, 'elm-css-error-cannot-apply-' + (functionName + '-with-empty-Style'));
-					} else {
-						if (!style.a.b.b) {
-							var _v1 = style.a;
-							var only = _v1.a;
-							var $temp$functionName = functionName,
-								$temp$desiredKey = desiredKey,
-								$temp$style = only;
-							functionName = $temp$functionName;
-							desiredKey = $temp$desiredKey;
-							style = $temp$style;
-							continue getOverloadedProperty;
-						} else {
-							var _v2 = style.a;
-							var first = _v2.a;
-							var rest = _v2.b;
-							var $temp$functionName = functionName,
-								$temp$desiredKey = desiredKey,
-								$temp$style = $rtfeldman$elm_css$Css$Preprocess$ApplyStyles(rest);
-							functionName = $temp$functionName;
-							desiredKey = $temp$desiredKey;
-							style = $temp$style;
-							continue getOverloadedProperty;
-						}
-					}
-			}
-		}
-	});
-var $rtfeldman$elm_css$Css$Internal$IncompatibleUnits = {$: 'IncompatibleUnits'};
-var $rtfeldman$elm_css$Css$Internal$lengthForOverloadedProperty = A3($rtfeldman$elm_css$Css$Internal$lengthConverter, $rtfeldman$elm_css$Css$Internal$IncompatibleUnits, '', 0);
-var $rtfeldman$elm_css$Css$justifyContent = function (fn) {
-	return A3(
-		$rtfeldman$elm_css$Css$Internal$getOverloadedProperty,
-		'justifyContent',
-		'justify-content',
-		fn($rtfeldman$elm_css$Css$Internal$lengthForOverloadedProperty));
-};
-var $elm$virtual_dom$VirtualDom$Normal = function (a) {
-	return {$: 'Normal', a: a};
+var $elm$virtual_dom$VirtualDom$MayStopPropagation = function (a) {
+	return {$: 'MayStopPropagation', a: a};
 };
 var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
 var $rtfeldman$elm_css$VirtualDom$Styled$on = F2(
@@ -7522,18 +10967,54 @@ var $rtfeldman$elm_css$VirtualDom$Styled$on = F2(
 			false,
 			'');
 	});
-var $rtfeldman$elm_css$Html$Styled$Events$on = F2(
+var $rtfeldman$elm_css$Html$Styled$Events$stopPropagationOn = F2(
 	function (event, decoder) {
 		return A2(
 			$rtfeldman$elm_css$VirtualDom$Styled$on,
 			event,
-			$elm$virtual_dom$VirtualDom$Normal(decoder));
+			$elm$virtual_dom$VirtualDom$MayStopPropagation(decoder));
 	});
-var $rtfeldman$elm_css$Html$Styled$Events$onClick = function (msg) {
+var $elm$json$Json$Decode$field = _Json_decodeField;
+var $elm$json$Json$Decode$at = F2(
+	function (fields, decoder) {
+		return A3($elm$core$List$foldr, $elm$json$Json$Decode$field, decoder, fields);
+	});
+var $elm$json$Json$Decode$string = _Json_decodeString;
+var $rtfeldman$elm_css$Html$Styled$Events$targetValue = A2(
+	$elm$json$Json$Decode$at,
+	_List_fromArray(
+		['target', 'value']),
+	$elm$json$Json$Decode$string);
+var $rtfeldman$elm_css$Html$Styled$Events$onInput = function (tagger) {
 	return A2(
-		$rtfeldman$elm_css$Html$Styled$Events$on,
-		'click',
-		$elm$json$Json$Decode$succeed(msg));
+		$rtfeldman$elm_css$Html$Styled$Events$stopPropagationOn,
+		'input',
+		A2(
+			$elm$json$Json$Decode$map,
+			$rtfeldman$elm_css$Html$Styled$Events$alwaysStop,
+			A2($elm$json$Json$Decode$map, tagger, $rtfeldman$elm_css$Html$Styled$Events$targetValue)));
+};
+var $rtfeldman$elm_css$Html$Styled$Events$alwaysPreventDefault = function (msg) {
+	return _Utils_Tuple2(msg, true);
+};
+var $elm$virtual_dom$VirtualDom$MayPreventDefault = function (a) {
+	return {$: 'MayPreventDefault', a: a};
+};
+var $rtfeldman$elm_css$Html$Styled$Events$preventDefaultOn = F2(
+	function (event, decoder) {
+		return A2(
+			$rtfeldman$elm_css$VirtualDom$Styled$on,
+			event,
+			$elm$virtual_dom$VirtualDom$MayPreventDefault(decoder));
+	});
+var $rtfeldman$elm_css$Html$Styled$Events$onSubmit = function (msg) {
+	return A2(
+		$rtfeldman$elm_css$Html$Styled$Events$preventDefaultOn,
+		'submit',
+		A2(
+			$elm$json$Json$Decode$map,
+			$rtfeldman$elm_css$Html$Styled$Events$alwaysPreventDefault,
+			$elm$json$Json$Decode$succeed(msg)));
 };
 var $rtfeldman$elm_css$Css$PxUnits = {$: 'PxUnits'};
 var $rtfeldman$elm_css$Css$px = A2($rtfeldman$elm_css$Css$Internal$lengthConverter, $rtfeldman$elm_css$Css$PxUnits, 'px');
@@ -7560,264 +11041,120 @@ var $rtfeldman$elm_css$Css$rgb = F3(
 		};
 	});
 var $rtfeldman$elm_css$Css$solid = {borderStyle: $rtfeldman$elm_css$Css$Structure$Compatible, textDecorationStyle: $rtfeldman$elm_css$Css$Structure$Compatible, value: 'solid'};
-var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
+var $rtfeldman$elm_css$VirtualDom$Styled$property = F2(
+	function (key, value) {
+		return A3(
+			$rtfeldman$elm_css$VirtualDom$Styled$Attribute,
+			A2($elm$virtual_dom$VirtualDom$property, key, value),
+			false,
+			'');
+	});
+var $rtfeldman$elm_css$Html$Styled$Attributes$stringProperty = F2(
+	function (key, string) {
+		return A2(
+			$rtfeldman$elm_css$VirtualDom$Styled$property,
+			key,
+			$elm$json$Json$Encode$string(string));
+	});
+var $rtfeldman$elm_css$Html$Styled$Attributes$type_ = $rtfeldman$elm_css$Html$Styled$Attributes$stringProperty('type');
+var $rtfeldman$elm_css$Html$Styled$Attributes$value = $rtfeldman$elm_css$Html$Styled$Attributes$stringProperty('value');
+var $rtfeldman$elm_css$Css$width = $rtfeldman$elm_css$Css$prop1('width');
+var $author$project$Album$editingView = F2(
+	function (cfg, album) {
+		return A4(
+			$rtfeldman$elm_css$Html$Styled$styled,
+			$rtfeldman$elm_css$Html$Styled$form,
+			_List_fromArray(
+				[
+					A3(
+					$rtfeldman$elm_css$Css$border3,
+					$rtfeldman$elm_css$Css$px(2),
+					$rtfeldman$elm_css$Css$solid,
+					A3($rtfeldman$elm_css$Css$rgb, 0, 0, 0)),
+					$rtfeldman$elm_css$Css$width(
+					$rtfeldman$elm_css$Css$em(20)),
+					$rtfeldman$elm_css$Css$displayFlex,
+					$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center),
+					$rtfeldman$elm_css$Css$fontSize(
+					$rtfeldman$elm_css$Css$em(1.5))
+				]),
+			_List_fromArray(
+				[
+					$rtfeldman$elm_css$Html$Styled$Events$onSubmit(cfg.submitEdit)
+				]),
+			_List_fromArray(
+				[
+					A4(
+					$rtfeldman$elm_css$Html$Styled$styled,
+					$rtfeldman$elm_css$Html$Styled$input,
+					_List_Nil,
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Html$Styled$Attributes$type_('text'),
+							$rtfeldman$elm_css$Html$Styled$Attributes$value(album.name),
+							$rtfeldman$elm_css$Html$Styled$Events$onInput(
+							function (n) {
+								return cfg.updateEdit(
+									_Utils_update(
+										album,
+										{name: n}));
+							})
+						]),
+					_List_Nil)
+				]));
+	});
+var $author$project$QStore$Core$idEq = F2(
+	function (_v0, _v1) {
+		var a = _v0.a;
+		var b = _v1.a;
+		return _Utils_eq(a, b);
+	});
+var $rtfeldman$elm_css$VirtualDom$Styled$Unstyled = function (a) {
+	return {$: 'Unstyled', a: a};
+};
 var $rtfeldman$elm_css$VirtualDom$Styled$text = function (str) {
 	return $rtfeldman$elm_css$VirtualDom$Styled$Unstyled(
 		$elm$virtual_dom$VirtualDom$text(str));
 };
 var $rtfeldman$elm_css$Html$Styled$text = $rtfeldman$elm_css$VirtualDom$Styled$text;
-var $rtfeldman$elm_css$Css$width = $rtfeldman$elm_css$Css$prop1('width');
-var $author$project$Album$App$view = F2(
-	function (albumMsg, _v0) {
-		var album = _v0.a;
-		return _List_fromArray(
-			[
-				A4(
-				$rtfeldman$elm_css$Html$Styled$styled,
-				$rtfeldman$elm_css$Html$Styled$div,
-				_List_fromArray(
-					[
-						A3(
-						$rtfeldman$elm_css$Css$border3,
-						$rtfeldman$elm_css$Css$px(2),
-						$rtfeldman$elm_css$Css$solid,
-						A3($rtfeldman$elm_css$Css$rgb, 0, 0, 0)),
-						$rtfeldman$elm_css$Css$width(
-						$rtfeldman$elm_css$Css$em(20)),
-						$rtfeldman$elm_css$Css$displayFlex,
-						$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center),
-						$rtfeldman$elm_css$Css$fontSize(
-						$rtfeldman$elm_css$Css$em(1.5))
-					]),
-				_List_fromArray(
-					[
-						$rtfeldman$elm_css$Html$Styled$Events$onClick(
-						$author$project$App$External(
-							albumMsg(album)))
-					]),
-				_List_fromArray(
-					[
-						$rtfeldman$elm_css$Html$Styled$text(album.name)
-					]))
-			]);
-	});
-var $author$project$Album$App$app = F2(
-	function (viewAlbum, album) {
-		return {
-			init: _Utils_Tuple2(
-				$author$project$Album$App$Model(album),
-				$elm$core$Platform$Cmd$none),
-			update: $author$project$Album$App$update,
-			view: $author$project$Album$App$view(viewAlbum)
-		};
-	});
-var $author$project$App$List$Model = function (a) {
-	return {$: 'Model', a: a};
+var $elm$virtual_dom$VirtualDom$Normal = function (a) {
+	return {$: 'Normal', a: a};
 };
-var $author$project$ListPos$Here = function (a) {
-	return {$: 'Here', a: a};
-};
-var $author$project$App$List$Msg = function (a) {
-	return {$: 'Msg', a: a};
-};
-var $author$project$ListPos$Next = function (a) {
-	return {$: 'Next', a: a};
-};
-var $author$project$App$List$init = function (l) {
-	if (!l.b) {
-		return _Utils_Tuple2(
-			$author$project$App$List$Model(_List_Nil),
-			$elm$core$Platform$Cmd$none);
-	} else {
-		var _v1 = l.a;
-		var model = _v1.a;
-		var cmd = _v1.b;
-		var inits = l.b;
-		var _v2 = $author$project$App$List$init(inits);
-		var models = _v2.a.a;
-		var cmds = _v2.b;
-		return _Utils_Tuple2(
-			$author$project$App$List$Model(
-				A2($elm$core$List$cons, model, models)),
-			$elm$core$Platform$Cmd$batch(
-				_List_fromArray(
-					[
-						A2(
-						$elm$core$Platform$Cmd$map,
-						$author$project$App$mapInternal(
-							A2($elm$core$Basics$composeL, $author$project$App$List$Msg, $author$project$ListPos$Here)),
-						cmd),
-						A2(
-						$elm$core$Platform$Cmd$map,
-						$author$project$App$mapInternal(
-							function (_v3) {
-								var msg = _v3.a;
-								return $author$project$App$List$Msg(
-									$author$project$ListPos$Next(msg));
-							}),
-						cmds)
-					])));
-	}
-};
-var $elm$core$Tuple$mapFirst = F2(
-	function (func, _v0) {
-		var x = _v0.a;
-		var y = _v0.b;
-		return _Utils_Tuple2(
-			func(x),
-			y);
-	});
-var $author$project$App$List$update = F3(
-	function (updates, input, models) {
-		var _v0 = _Utils_Tuple3(updates, input, models);
-		_v0$2:
-		while (true) {
-			if (_v0.a.b) {
-				if (_v0.b.$ === 'Here') {
-					if (_v0.c.b) {
-						var _v1 = _v0.a;
-						var u = _v1.a;
-						var us = _v1.b;
-						var i = _v0.b.a;
-						var _v2 = _v0.c;
-						var m = _v2.a;
-						var ms = _v2.b;
-						var _v3 = A2(u, i, m);
-						var newm = _v3.a;
-						var cmd = _v3.b;
-						return _Utils_Tuple2(
-							A2($elm$core$List$cons, newm, ms),
-							A2(
-								$elm$core$Platform$Cmd$map,
-								$author$project$App$mapInternal(
-									A2($elm$core$Basics$composeL, $author$project$App$List$Msg, $author$project$ListPos$Here)),
-								cmd));
-					} else {
-						break _v0$2;
-					}
-				} else {
-					if (_v0.c.b) {
-						var _v4 = _v0.a;
-						var u = _v4.a;
-						var us = _v4.b;
-						var i = _v0.b.a;
-						var _v5 = _v0.c;
-						var m = _v5.a;
-						var ms = _v5.b;
-						var _v6 = A3($author$project$App$List$update, us, i, ms);
-						var newms = _v6.a;
-						var cmd = _v6.b;
-						return _Utils_Tuple2(
-							A2($elm$core$List$cons, m, newms),
-							A2(
-								$elm$core$Platform$Cmd$map,
-								$author$project$App$mapInternal(
-									function (_v7) {
-										var o = _v7.a;
-										return $author$project$App$List$Msg(
-											$author$project$ListPos$Next(o));
-									}),
-								cmd));
-					} else {
-						break _v0$2;
-					}
-				}
-			} else {
-				break _v0$2;
-			}
-		}
-		var ms = _v0.c;
-		return _Utils_Tuple2(ms, $elm$core$Platform$Cmd$none);
-	});
-var $author$project$App$List$view = function (l) {
-	if (!l.b) {
-		return _List_Nil;
-	} else {
-		var v = l.a;
-		var vs = l.b;
+var $rtfeldman$elm_css$Html$Styled$Events$on = F2(
+	function (event, decoder) {
 		return A2(
-			$elm$core$List$cons,
-			A2(
-				$rtfeldman$elm_css$Html$Styled$map,
-				$author$project$App$mapInternal(
-					A2($elm$core$Basics$composeL, $author$project$App$List$Msg, $author$project$ListPos$Here)),
-				v),
-			A2(
-				$elm$core$List$map,
-				$rtfeldman$elm_css$Html$Styled$map(
-					$author$project$App$mapInternal(
-						function (_v1) {
-							var i = _v1.a;
-							return $author$project$App$List$Msg(
-								$author$project$ListPos$Next(i));
-						})),
-				$author$project$App$List$view(vs)));
-	}
-};
-var $author$project$App$List$app = function (apps) {
-	return {
-		init: $author$project$App$List$init(
-			A2(
-				$elm$core$List$map,
-				function ($) {
-					return $.init;
-				},
-				apps)),
-		update: F2(
-			function (_v0, _v1) {
-				var msg = _v0.a;
-				var m = _v1.a;
-				return A2(
-					$elm$core$Tuple$mapFirst,
-					$author$project$App$List$Model,
-					A3(
-						$author$project$App$List$update,
-						A2(
-							$elm$core$List$map,
-							function ($) {
-								return $.update;
-							},
-							apps),
-						msg,
-						m));
-			}),
-		view: function (_v2) {
-			var ms = _v2.a;
-			return $author$project$App$List$view(
-				$elm$core$List$concat(
-					A3(
-						$elm$core$List$map2,
-						F2(
-							function (a, m) {
-								return a.view(m);
-							}),
-						apps,
-						ms)));
-		}
-	};
-};
-var $rtfeldman$elm_css$Css$row = {flexDirection: $rtfeldman$elm_css$Css$Structure$Compatible, flexDirectionOrWrap: $rtfeldman$elm_css$Css$Structure$Compatible, value: 'row'};
-var $rtfeldman$elm_css$Css$column = _Utils_update(
-	$rtfeldman$elm_css$Css$row,
-	{value: 'column'});
-var $rtfeldman$elm_css$Css$flexDirection = $rtfeldman$elm_css$Css$prop1('flex-direction');
-var $elm$core$Basics$composeR = F3(
-	function (f, g, x) {
-		return g(
-			f(x));
+			$rtfeldman$elm_css$VirtualDom$Styled$on,
+			event,
+			$elm$virtual_dom$VirtualDom$Normal(decoder));
 	});
-var $author$project$App$wrapView = F2(
-	function (wrapper, app) {
-		return {
-			init: app.init,
-			update: app.update,
-			view: A2($elm$core$Basics$composeR, app.view, wrapper)
-		};
-	});
-var $author$project$App$Flex$flex = function (d) {
-	return $author$project$App$wrapView(
-		function (html) {
-			return _List_fromArray(
+var $rtfeldman$elm_css$Html$Styled$Events$onClick = function (msg) {
+	return A2(
+		$rtfeldman$elm_css$Html$Styled$Events$on,
+		'click',
+		$elm$json$Json$Decode$succeed(msg));
+};
+var $author$project$Album$view = F2(
+	function (cfg, album) {
+		return A4(
+			$rtfeldman$elm_css$Html$Styled$styled,
+			$rtfeldman$elm_css$Html$Styled$div,
+			_List_fromArray(
+				[
+					A3(
+					$rtfeldman$elm_css$Css$border3,
+					$rtfeldman$elm_css$Css$px(2),
+					$rtfeldman$elm_css$Css$solid,
+					A3($rtfeldman$elm_css$Css$rgb, 0, 0, 0)),
+					$rtfeldman$elm_css$Css$width(
+					$rtfeldman$elm_css$Css$em(20)),
+					$rtfeldman$elm_css$Css$displayFlex,
+					$rtfeldman$elm_css$Css$flexDirection($rtfeldman$elm_css$Css$row),
+					$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center),
+					$rtfeldman$elm_css$Css$fontSize(
+					$rtfeldman$elm_css$Css$em(1.5))
+				]),
+			_List_Nil,
+			_List_fromArray(
 				[
 					A4(
 					$rtfeldman$elm_css$Html$Styled$styled,
@@ -7825,3841 +11162,311 @@ var $author$project$App$Flex$flex = function (d) {
 					_List_fromArray(
 						[
 							$rtfeldman$elm_css$Css$displayFlex,
-							$rtfeldman$elm_css$Css$flexDirection(d),
+							$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center),
+							$rtfeldman$elm_css$Css$flexGrow(
+							$rtfeldman$elm_css$Css$num(1))
+						]),
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Html$Styled$Events$onClick(cfg.view)
+						]),
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Html$Styled$text(album.name)
+						])),
+					A4(
+					$rtfeldman$elm_css$Html$Styled$styled,
+					$rtfeldman$elm_css$Html$Styled$div,
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Css$displayFlex,
+							$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center)
+						]),
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Html$Styled$Events$onClick(cfg.edit)
+						]),
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Html$Styled$text('edit')
+						]))
+				]));
+	});
+var $author$project$Album$viewTrack = F2(
+	function (cfg, track) {
+		return A4(
+			$rtfeldman$elm_css$Html$Styled$styled,
+			$rtfeldman$elm_css$Html$Styled$div,
+			_List_fromArray(
+				[
+					A3(
+					$rtfeldman$elm_css$Css$border3,
+					$rtfeldman$elm_css$Css$px(2),
+					$rtfeldman$elm_css$Css$solid,
+					A3($rtfeldman$elm_css$Css$rgb, 0, 0, 0)),
+					$rtfeldman$elm_css$Css$width(
+					$rtfeldman$elm_css$Css$em(20)),
+					$rtfeldman$elm_css$Css$fontSize(
+					$rtfeldman$elm_css$Css$em(1.5)),
+					$rtfeldman$elm_css$Css$displayFlex,
+					$rtfeldman$elm_css$Css$flexDirection($rtfeldman$elm_css$Css$row),
+					$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center)
+				]),
+			_List_fromArray(
+				[
+					$rtfeldman$elm_css$Html$Styled$Events$onClick(cfg.playSong)
+				]),
+			_List_fromArray(
+				[
+					A4(
+					$rtfeldman$elm_css$Html$Styled$styled,
+					$rtfeldman$elm_css$Html$Styled$div,
+					_List_Nil,
+					_List_Nil,
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Html$Styled$text(
+							A2(
+								$elm$core$String$append,
+								$elm$core$String$fromInt(track.number),
+								'.'))
+						])),
+					A4(
+					$rtfeldman$elm_css$Html$Styled$styled,
+					$rtfeldman$elm_css$Html$Styled$div,
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Css$flexGrow(
+							$rtfeldman$elm_css$Css$num(1)),
+							$rtfeldman$elm_css$Css$displayFlex,
 							$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center)
 						]),
 					_List_Nil,
-					html)
-				]);
-		});
-};
-var $author$project$App$Flex$column = $author$project$App$Flex$flex($rtfeldman$elm_css$Css$column);
-var $author$project$App$mapExternal = F2(
-	function (f, m) {
-		if (m.$ === 'External') {
-			var msg = m.a;
-			return $author$project$App$External(
-				f(msg));
-		} else {
-			var msg = m.a;
-			return $author$project$App$Internal(msg);
-		}
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Html$Styled$text(track.song.name)
+						]))
+				]));
 	});
-var $author$project$App$equivInit = F4(
-	function (modelEquiv, msgEEquiv, msgIEquiv, _v0) {
-		var model = _v0.a;
-		var cmd = _v0.b;
-		return _Utils_Tuple2(
-			modelEquiv.to(model),
-			A2(
-				$elm$core$Platform$Cmd$map,
-				$author$project$App$mapInternal(msgIEquiv.to),
-				A2(
-					$elm$core$Platform$Cmd$map,
-					$author$project$App$mapExternal(msgEEquiv.to),
-					cmd)));
-	});
-var $author$project$App$equivUpdate = F6(
-	function (modelEquiv, msgEEquiv, msgIEquiv, update, msg, model) {
-		var _v0 = A2(
-			update,
-			msgIEquiv.from(msg),
-			modelEquiv.from(model));
-		var newModel = _v0.a;
-		var cmd = _v0.b;
-		return _Utils_Tuple2(
-			modelEquiv.to(newModel),
-			A2(
-				$elm$core$Platform$Cmd$map,
-				$author$project$App$mapInternal(msgIEquiv.to),
-				A2(
-					$elm$core$Platform$Cmd$map,
-					$author$project$App$mapExternal(msgEEquiv.to),
-					cmd)));
-	});
-var $author$project$App$equivView = F5(
-	function (modelEquiv, msgEEquiv, msgIEquiv, view, model) {
-		return A2(
-			$elm$core$List$map,
-			$rtfeldman$elm_css$Html$Styled$map(
-				$author$project$App$mapInternal(msgIEquiv.to)),
-			A2(
-				$elm$core$List$map,
-				$rtfeldman$elm_css$Html$Styled$map(
-					$author$project$App$mapExternal(msgEEquiv.to)),
-				view(
-					modelEquiv.from(model))));
-	});
-var $author$project$App$equiv = F4(
-	function (modelEquiv, msgEEquiv, msgIEquiv, app) {
-		return {
-			init: A4($author$project$App$equivInit, modelEquiv, msgEEquiv, msgIEquiv, app.init),
-			update: A4($author$project$App$equivUpdate, modelEquiv, msgEEquiv, msgIEquiv, app.update),
-			view: A4($author$project$App$equivView, modelEquiv, msgEEquiv, msgIEquiv, app.view)
-		};
-	});
-var $author$project$Album$Albums$Model = function (a) {
-	return {$: 'Model', a: a};
-};
-var $author$project$Album$Albums$modelEquiv = {
-	from: function (_v0) {
-		var l = _v0.a;
-		return l;
-	},
-	to: $author$project$Album$Albums$Model
-};
-var $author$project$Album$Albums$Msg = function (a) {
-	return {$: 'Msg', a: a};
-};
-var $author$project$Album$Albums$msgEquiv = {
-	from: function (_v0) {
-		var l = _v0.a;
-		return l;
-	},
-	to: $author$project$Album$Albums$Msg
-};
-var $author$project$Equiv$refl = {
-	from: function (x) {
-		return x;
-	},
-	to: function (x) {
-		return x;
-	}
-};
-var $author$project$Album$Albums$app = F2(
-	function (viewAlbum, albums) {
-		return A4(
-			$author$project$App$equiv,
-			$author$project$Album$Albums$modelEquiv,
-			$author$project$Equiv$refl,
-			$author$project$Album$Albums$msgEquiv,
-			$author$project$App$Flex$column(
-				$author$project$App$List$app(
-					A2(
-						$elm$core$List$map,
-						$author$project$Album$App$app(viewAlbum),
-						albums))));
-	});
-var $author$project$Album$Songs$Model = {$: 'Model'};
-var $author$project$Album$Songs$init = function (_v0) {
-	return _Utils_Tuple2($author$project$Album$Songs$Model, $elm$core$Platform$Cmd$none);
-};
-var $author$project$Album$Songs$update = F3(
-	function (_v0, _v1, m) {
-		return _Utils_Tuple2(m, $elm$core$Platform$Cmd$none);
-	});
-var $author$project$Album$Songs$view = F2(
-	function (album, _v0) {
-		return _List_fromArray(
-			[
-				$rtfeldman$elm_css$Html$Styled$text(album.name)
-			]);
-	});
-var $author$project$Album$Songs$app = function (album) {
-	return {
-		init: $author$project$Album$Songs$init(album),
-		update: $author$project$Album$Songs$update(album),
-		view: $author$project$Album$Songs$view(album)
-	};
-};
-var $author$project$App$Loading$Complete = function (a) {
-	return {$: 'Complete', a: a};
-};
-var $author$project$App$Loading$Loading = {$: 'Loading'};
-var $author$project$App$Loading$Loaded = F2(
-	function (a, b) {
-		return {$: 'Loaded', a: a, b: b};
-	});
-var $author$project$App$Loading$Msg = function (a) {
-	return {$: 'Msg', a: a};
-};
-var $author$project$App$Loading$update = F2(
-	function (msg, model) {
-		var _v0 = _Utils_Tuple2(msg, model);
-		_v0$2:
-		while (true) {
-			if (_v0.a.$ === 'Complete') {
-				if (_v0.b.$ === 'Loading') {
-					var a = _v0.a.a;
-					var _v1 = _v0.b;
-					var _v2 = a.init;
-					var initm = _v2.a;
-					var initcmd = _v2.b;
-					return _Utils_Tuple2(
-						A2($author$project$App$Loading$Loaded, a, initm),
-						A2(
-							$elm$core$Platform$Cmd$map,
-							$author$project$App$mapInternal($author$project$App$Loading$Msg),
-							initcmd));
-				} else {
-					break _v0$2;
-				}
-			} else {
-				if (_v0.b.$ === 'Loaded') {
-					var im = _v0.a.a;
-					var _v3 = _v0.b;
-					var a = _v3.a;
-					var m = _v3.b;
-					var _v4 = A2(a.update, im, m);
-					var newm = _v4.a;
-					var cmd = _v4.b;
-					return _Utils_Tuple2(
-						A2($author$project$App$Loading$Loaded, a, newm),
-						A2(
-							$elm$core$Platform$Cmd$map,
-							$author$project$App$mapInternal($author$project$App$Loading$Msg),
-							cmd));
-				} else {
-					break _v0$2;
-				}
-			}
-		}
-		return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-	});
-var $author$project$App$Loading$view = function (m) {
-	if (m.$ === 'Loading') {
-		return _List_fromArray(
-			[
-				A4(
+var $author$project$Main$viewBrowser = function (b) {
+	switch (b.$) {
+		case 'Albums':
+			var a = b.a;
+			return A4(
 				$rtfeldman$elm_css$Html$Styled$styled,
 				$rtfeldman$elm_css$Html$Styled$div,
 				_List_Nil,
 				_List_Nil,
-				_List_fromArray(
-					[
-						$rtfeldman$elm_css$Html$Styled$text('Loading...')
-					]))
-			]);
-	} else {
-		var a = m.a;
-		var am = m.b;
-		return A2(
-			$elm$core$List$map,
-			$rtfeldman$elm_css$Html$Styled$map(
-				$author$project$App$mapInternal($author$project$App$Loading$Msg)),
-			a.view(am));
-	}
-};
-var $author$project$App$Loading$app = function (loadApp) {
-	return {
-		init: _Utils_Tuple2(
-			$author$project$App$Loading$Loading,
-			A2(
-				$elm$core$Platform$Cmd$map,
-				A2($elm$core$Basics$composeL, $author$project$App$Internal, $author$project$App$Loading$Complete),
-				loadApp)),
-		update: $author$project$App$Loading$update,
-		view: $author$project$App$Loading$view
-	};
-};
-var $author$project$App$Switch$ForA = function (a) {
-	return {$: 'ForA', a: a};
-};
-var $author$project$App$Switch$ForB = function (a) {
-	return {$: 'ForB', a: a};
-};
-var $author$project$App$Switch$IsA = F2(
-	function (a, b) {
-		return {$: 'IsA', a: a, b: b};
-	});
-var $author$project$App$Switch$IsB = F2(
-	function (a, b) {
-		return {$: 'IsB', a: a, b: b};
-	});
-var $elm$core$Tuple$mapSecond = F2(
-	function (func, _v0) {
-		var x = _v0.a;
-		var y = _v0.b;
-		return _Utils_Tuple2(
-			x,
-			func(y));
-	});
-var $author$project$App$Switch$init = function (s) {
-	if (s.$ === 'StartA') {
-		var a = s.a;
-		return A2(
-			A2(
-				$elm$core$Basics$composeL,
-				A2($elm$core$Basics$composeL, $elm$core$Tuple$mapSecond, $elm$core$Platform$Cmd$map),
-				$author$project$App$mapInternal),
-			$author$project$App$Switch$ForA,
-			A2(
-				$elm$core$Tuple$mapFirst,
-				$author$project$App$Switch$IsA(a),
-				a.init));
-	} else {
-		var b = s.a;
-		return A2(
-			A2(
-				$elm$core$Basics$composeL,
-				A2($elm$core$Basics$composeL, $elm$core$Tuple$mapSecond, $elm$core$Platform$Cmd$map),
-				$author$project$App$mapInternal),
-			$author$project$App$Switch$ForB,
-			A2(
-				$elm$core$Tuple$mapFirst,
-				$author$project$App$Switch$IsB(b),
-				b.init));
-	}
-};
-var $author$project$App$Switch$StartB = function (a) {
-	return {$: 'StartB', a: a};
-};
-var $author$project$App$Switch$mapStartA = F2(
-	function (f, s) {
-		if (s.$ === 'StartA') {
-			var a = s.a;
-			return $author$project$App$Switch$StartA(
-				f(a));
-		} else {
-			var b = s.a;
-			return $author$project$App$Switch$StartB(b);
-		}
-	});
-var $author$project$App$Switch$mapStartB = F2(
-	function (f, s) {
-		if (s.$ === 'StartA') {
-			var a = s.a;
-			return $author$project$App$Switch$StartA(a);
-		} else {
-			var b = s.a;
-			return $author$project$App$Switch$StartB(
-				f(b));
-		}
-	});
-var $author$project$App$Switch$update = F4(
-	function (mkA, mkB, msg, m) {
-		var _v0 = _Utils_Tuple2(msg, m);
-		_v0$4:
-		while (true) {
-			switch (_v0.a.$) {
-				case 'SwitchToA':
-					var a = _v0.a.a;
-					return $author$project$App$Switch$init(
-						$author$project$App$Switch$StartA(
-							mkA(a)));
-				case 'SwitchToB':
-					var b = _v0.a.a;
-					return $author$project$App$Switch$init(
-						$author$project$App$Switch$StartB(
-							mkB(b)));
-				case 'ForA':
-					if (_v0.b.$ === 'IsA') {
-						var msga = _v0.a.a;
-						var _v1 = _v0.b;
-						var a = _v1.a;
-						var model = _v1.b;
-						return A2(
-							A2(
-								$elm$core$Basics$composeL,
-								A2($elm$core$Basics$composeL, $elm$core$Tuple$mapSecond, $elm$core$Platform$Cmd$map),
-								$author$project$App$mapInternal),
-							$author$project$App$Switch$ForA,
-							A2(
-								$elm$core$Tuple$mapFirst,
-								$author$project$App$Switch$IsA(a),
-								A2(a.update, msga, model)));
-					} else {
-						break _v0$4;
-					}
-				default:
-					if (_v0.b.$ === 'IsB') {
-						var msgb = _v0.a.a;
-						var _v2 = _v0.b;
-						var b = _v2.a;
-						var model = _v2.b;
-						return A2(
-							A2(
-								$elm$core$Basics$composeL,
-								A2($elm$core$Basics$composeL, $elm$core$Tuple$mapSecond, $elm$core$Platform$Cmd$map),
-								$author$project$App$mapInternal),
-							$author$project$App$Switch$ForB,
-							A2(
-								$elm$core$Tuple$mapFirst,
-								$author$project$App$Switch$IsB(b),
-								A2(b.update, msgb, model)));
-					} else {
-						break _v0$4;
-					}
-			}
-		}
-		return _Utils_Tuple2(m, $elm$core$Platform$Cmd$none);
-	});
-var $author$project$App$Switch$view = function (m) {
-	if (m.$ === 'IsA') {
-		var a = m.a;
-		var model = m.b;
-		return A2(
-			A2(
-				$elm$core$Basics$composeL,
-				A2($elm$core$Basics$composeL, $elm$core$List$map, $rtfeldman$elm_css$Html$Styled$map),
-				$author$project$App$mapInternal),
-			$author$project$App$Switch$ForA,
-			a.view(model));
-	} else {
-		var b = m.a;
-		var model = m.b;
-		return A2(
-			A2(
-				$elm$core$Basics$composeL,
-				A2($elm$core$Basics$composeL, $elm$core$List$map, $rtfeldman$elm_css$Html$Styled$map),
-				$author$project$App$mapInternal),
-			$author$project$App$Switch$ForB,
-			b.view(model));
-	}
-};
-var $author$project$App$Switch$app = F3(
-	function (mkA, mkB, start) {
-		return {
-			init: $author$project$App$Switch$init(
 				A2(
-					$author$project$App$Switch$mapStartB,
-					mkB,
-					A2($author$project$App$Switch$mapStartA, mkA, start))),
-			update: A2($author$project$App$Switch$update, mkA, mkB),
-			view: $author$project$App$Switch$view
-		};
-	});
-var $author$project$App$consolidate = function (m) {
-	if (m.$ === 'External') {
-		var msg = m.a;
-		return msg;
-	} else {
-		var msg = m.a;
-		return msg;
-	}
-};
-var $author$project$App$handle = function (app) {
-	return {
-		init: A2(
-			A2($elm$core$Basics$composeL, $elm$core$Tuple$mapSecond, $elm$core$Platform$Cmd$map),
-			A2($elm$core$Basics$composeL, $author$project$App$Internal, $author$project$App$consolidate),
-			app.init),
-		update: F2(
-			function (msg, m) {
-				return A2(
-					A2($elm$core$Basics$composeL, $elm$core$Tuple$mapSecond, $elm$core$Platform$Cmd$map),
-					A2($elm$core$Basics$composeL, $author$project$App$Internal, $author$project$App$consolidate),
-					A2(app.update, msg, m));
-			}),
-		view: A2(
-			$elm$core$Basics$composeR,
-			app.view,
-			A2($elm$core$Basics$composeL, $elm$core$List$map, $rtfeldman$elm_css$Html$Styled$map)(
-				A2($elm$core$Basics$composeL, $author$project$App$Internal, $author$project$App$consolidate)))
-	};
-};
-var $author$project$Main$Model = function (a) {
-	return {$: 'Model', a: a};
-};
-var $author$project$Main$modelEquiv = {
-	from: function (_v0) {
-		var m = _v0.a;
-		return m;
-	},
-	to: $author$project$Main$Model
-};
-var $author$project$Main$msgEquiv = {
-	from: $author$project$Main$Msg,
-	to: function (_v0) {
-		var m = _v0.a;
-		return m;
-	}
-};
-var $author$project$QStore$Query$Query = F2(
-	function (a, b) {
-		return {$: 'Query', a: a, b: b};
-	});
-var $author$project$QStore$Query$listApp = F2(
-	function (fl, al) {
-		var _v0 = _Utils_Tuple2(fl, al);
-		if (!_v0.a.b) {
-			return _List_Nil;
-		} else {
-			if (!_v0.b.b) {
-				return _List_Nil;
-			} else {
-				var _v1 = _v0.a;
-				var f = _v1.a;
-				var nextfl = _v1.b;
-				var _v2 = _v0.b;
-				var a = _v2.a;
-				var nextas = _v2.b;
-				return A2(
-					$elm$core$List$cons,
-					f(a),
-					A2($author$project$QStore$Query$listApp, nextfl, nextas));
-			}
-		}
-	});
-var $elm$core$Result$map = F2(
-	function (func, ra) {
-		if (ra.$ === 'Ok') {
-			var a = ra.a;
-			return $elm$core$Result$Ok(
-				func(a));
-		} else {
-			var e = ra.a;
-			return $elm$core$Result$Err(e);
-		}
-	});
-var $author$project$QStore$Query$resApp = F2(
-	function (fr, ar) {
-		var _v0 = _Utils_Tuple2(fr, ar);
-		if (_v0.a.$ === 'Err') {
-			var err = _v0.a.a;
-			return $elm$core$Result$Err(err);
-		} else {
-			if (_v0.b.$ === 'Err') {
-				var err = _v0.b.a;
-				return $elm$core$Result$Err(err);
-			} else {
-				var f = _v0.a.a;
-				var a = _v0.b.a;
-				return $elm$core$Result$Ok(
-					f(a));
-			}
-		}
-	});
-var $author$project$QStore$Query$app = F2(
-	function (_v0, _v1) {
-		var aq = _v0.a;
-		var aproc = _v0.b;
-		var fq = _v1.a;
-		var fproc = _v1.b;
-		return A2(
-			$author$project$QStore$Query$Query,
-			A2($elm$core$List$append, fq, aq),
-			function (resp) {
-				return A2(
-					$author$project$QStore$Query$resApp,
-					A2(
-						$elm$core$Result$map,
-						$author$project$QStore$Query$listApp,
-						fproc(resp)),
-					aproc(resp));
-			});
-	});
-var $author$project$QStore$Query$QueryVar = F2(
-	function (a, b) {
-		return {$: 'QueryVar', a: a, b: b};
-	});
-var $author$project$QStore$Query$Var = function (a) {
-	return {$: 'Var', a: a};
-};
-var $author$project$QStore$Query$valueToId = function (v) {
-	if (v.$ === 'VId') {
-		var x = v.a;
-		return $elm$core$Maybe$Just(x);
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
-};
-var $author$project$QStore$Query$idVar = $author$project$QStore$Query$Var(
-	function (n) {
-		return _Utils_Tuple2(
-			n + 1,
-			A2(
-				$author$project$QStore$Query$QueryVar,
-				A2(
-					$elm$core$String$append,
-					'x',
-					$elm$core$String$fromInt(n)),
-				$author$project$QStore$Query$valueToId));
-	});
-var $author$project$QStore$Query$pure = function (a) {
-	return A2(
-		$author$project$QStore$Query$Query,
-		_List_Nil,
-		function (_v0) {
-			return $elm$core$Result$Ok(
-				_List_fromArray(
-					[a]));
-		});
-};
-var $author$project$QStore$Query$QVal = function (a) {
-	return {$: 'QVal', a: a};
-};
-var $author$project$QStore$Query$QuerySlot = F3(
-	function (a, b, c) {
-		return {$: 'QuerySlot', a: a, b: b, c: c};
-	});
-var $author$project$QStore$Core$VString = function (a) {
-	return {$: 'VString', a: a};
-};
-var $author$project$QStore$Query$string = function (s) {
-	return A3(
-		$author$project$QStore$Query$QuerySlot,
-		$author$project$QStore$Query$QVal(s),
-		$author$project$QStore$Query$QVal(
-			$author$project$QStore$Core$VString(s)),
-		function (_v0) {
-			return $elm$core$Result$Ok(
-				$elm$core$Maybe$Just(_Utils_Tuple0));
-		});
-};
-var $author$project$QStore$Query$valueToString = function (v) {
-	if (v.$ === 'VString') {
-		var s = v.a;
-		return $elm$core$Maybe$Just(s);
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
-};
-var $author$project$QStore$Query$stringVar = $author$project$QStore$Query$Var(
-	function (n) {
-		return _Utils_Tuple2(
-			n + 1,
-			A2(
-				$author$project$QStore$Query$QueryVar,
-				A2(
-					$elm$core$String$append,
-					'x',
-					$elm$core$String$fromInt(n)),
-				$author$project$QStore$Query$valueToString));
-	});
-var $elm$core$Maybe$map4 = F5(
-	function (func, ma, mb, mc, md) {
-		if (ma.$ === 'Nothing') {
-			return $elm$core$Maybe$Nothing;
-		} else {
-			var a = ma.a;
-			if (mb.$ === 'Nothing') {
-				return $elm$core$Maybe$Nothing;
-			} else {
-				var b = mb.a;
-				if (mc.$ === 'Nothing') {
-					return $elm$core$Maybe$Nothing;
-				} else {
-					var c = mc.a;
-					if (md.$ === 'Nothing') {
-						return $elm$core$Maybe$Nothing;
-					} else {
-						var d = md.a;
-						return $elm$core$Maybe$Just(
-							A4(func, a, b, c, d));
-					}
-				}
-			}
-		}
-	});
-var $elm$core$Result$map4 = F5(
-	function (func, ra, rb, rc, rd) {
-		if (ra.$ === 'Err') {
-			var x = ra.a;
-			return $elm$core$Result$Err(x);
-		} else {
-			var a = ra.a;
-			if (rb.$ === 'Err') {
-				var x = rb.a;
-				return $elm$core$Result$Err(x);
-			} else {
-				var b = rb.a;
-				if (rc.$ === 'Err') {
-					var x = rc.a;
-					return $elm$core$Result$Err(x);
-				} else {
-					var c = rc.a;
-					if (rd.$ === 'Err') {
-						var x = rd.a;
-						return $elm$core$Result$Err(x);
-					} else {
-						var d = rd.a;
-						return $elm$core$Result$Ok(
-							A4(func, a, b, c, d));
-					}
-				}
-			}
-		}
-	});
-var $author$project$QStore$Query$querySlotProc = function (_v0) {
-	var proc = _v0.c;
-	return proc;
-};
-var $author$project$QStore$Query$querySlotToQueryVal = function (_v0) {
-	var qv = _v0.a;
-	return qv;
-};
-var $author$project$QStore$Query$querySlotToQueryValValue = function (_v0) {
-	var qv = _v0.b;
-	return qv;
-};
-var $elm$core$Result$map2 = F3(
-	function (func, ra, rb) {
-		if (ra.$ === 'Err') {
-			var x = ra.a;
-			return $elm$core$Result$Err(x);
-		} else {
-			var a = ra.a;
-			if (rb.$ === 'Err') {
-				var x = rb.a;
-				return $elm$core$Result$Err(x);
-			} else {
-				var b = rb.a;
-				return $elm$core$Result$Ok(
-					A2(func, a, b));
-			}
-		}
-	});
-var $author$project$QStore$Query$sequenceResults = function (l) {
-	if (!l.b) {
-		return $elm$core$Result$Ok(_List_Nil);
-	} else {
-		var res = l.a;
-		var ress = l.b;
-		return A3(
-			$elm$core$Result$map2,
-			F2(
-				function (resOk, ressOk) {
-					return A2($elm$core$List$cons, resOk, ressOk);
-				}),
-			res,
-			$author$project$QStore$Query$sequenceResults(ress));
-	}
-};
-var $author$project$QStore$Query$true = function (q) {
-	return A2(
-		$author$project$QStore$Query$Query,
-		_List_fromArray(
-			[
-				{
-				attr: $author$project$QStore$Query$querySlotToQueryVal(q.attr),
-				id: $author$project$QStore$Query$querySlotToQueryVal(q.id),
-				tx: $author$project$QStore$Query$querySlotToQueryVal(q.tx),
-				value: $author$project$QStore$Query$querySlotToQueryValValue(q.value)
-			}
-			]),
-		function (resp) {
-			return A2(
-				$elm$core$Result$map,
-				$elm$core$List$concat,
-				$author$project$QStore$Query$sequenceResults(
-					A2(
-						$elm$core$List$map,
-						function (answ) {
-							return A5(
-								$elm$core$Result$map4,
-								F4(
-									function (idM, attrM, valueM, txM) {
-										return A2(
-											$elm$core$Maybe$withDefault,
-											_List_Nil,
-											A5(
-												$elm$core$Maybe$map4,
-												F4(
-													function (x, attr, value, tx) {
-														return _List_fromArray(
-															[
-																{attr: attr, id: x, tx: tx, value: value}
-															]);
-													}),
-												idM,
-												attrM,
-												valueM,
-												txM));
-									}),
-								A2($author$project$QStore$Query$querySlotProc, q.id, answ),
-								A2($author$project$QStore$Query$querySlotProc, q.attr, answ),
-								A2($author$project$QStore$Query$querySlotProc, q.value, answ),
-								A2($author$project$QStore$Query$querySlotProc, q.tx, answ));
-						},
-						resp)));
-		});
-};
-var $author$project$QStore$Query$BadResponse = function (a) {
-	return {$: 'BadResponse', a: a};
-};
-var $author$project$QStore$Query$QVar = function (a) {
-	return {$: 'QVar', a: a};
-};
-var $elm$core$Dict$get = F2(
-	function (targetKey, dict) {
-		get:
-		while (true) {
-			if (dict.$ === 'RBEmpty_elm_builtin') {
-				return $elm$core$Maybe$Nothing;
-			} else {
-				var key = dict.b;
-				var value = dict.c;
-				var left = dict.d;
-				var right = dict.e;
-				var _v1 = A2($elm$core$Basics$compare, targetKey, key);
-				switch (_v1.$) {
-					case 'LT':
-						var $temp$targetKey = targetKey,
-							$temp$dict = left;
-						targetKey = $temp$targetKey;
-						dict = $temp$dict;
-						continue get;
-					case 'EQ':
-						return $elm$core$Maybe$Just(value);
-					default:
-						var $temp$targetKey = targetKey,
-							$temp$dict = right;
-						targetKey = $temp$targetKey;
-						dict = $temp$dict;
-						continue get;
-				}
-			}
-		}
-	});
-var $author$project$QStore$Query$var = function (_v0) {
-	var x = _v0.a;
-	var proj = _v0.b;
-	return A3(
-		$author$project$QStore$Query$QuerySlot,
-		$author$project$QStore$Query$QVar(x),
-		$author$project$QStore$Query$QVar(x),
-		function (answ) {
-			return A2(
-				$elm$core$Result$map,
-				proj,
-				A2(
-					$elm$core$Maybe$withDefault,
-					$elm$core$Result$Err(
-						$author$project$QStore$Query$BadResponse(
-							A2($elm$core$String$append, 'No value returned for variable: ', x))),
-					A2(
-						$elm$core$Maybe$map,
-						$elm$core$Result$Ok,
-						A2($elm$core$Dict$get, x, answ))));
-		});
-};
-var $author$project$QStore$Query$varApp = F2(
-	function (_v0, _v1) {
-		var av = _v0.a;
-		var fv = _v1.a;
-		return $author$project$QStore$Query$Var(
-			function (m) {
-				var _v2 = fv(m);
-				var n = _v2.a;
-				var f = _v2.b;
-				var _v3 = av(n);
-				var o = _v3.a;
-				var a = _v3.b;
-				return _Utils_Tuple2(
-					o,
-					f(a));
-			});
-	});
-var $author$project$QStore$Query$varPure = function (a) {
-	return $author$project$QStore$Query$Var(
-		function (n) {
-			return _Utils_Tuple2(n, a);
-		});
-};
-var $author$project$QStore$Query$QWildcard = {$: 'QWildcard'};
-var $author$project$QStore$Query$wildcard = A3(
-	$author$project$QStore$Query$QuerySlot,
-	$author$project$QStore$Query$QWildcard,
-	$author$project$QStore$Query$QWildcard,
-	function (_v0) {
-		return $elm$core$Result$Ok(
-			$elm$core$Maybe$Just(_Utils_Tuple0));
-	});
-var $author$project$Album$query = _Utils_Tuple2(
-	A2(
-		$author$project$QStore$Query$varApp,
-		$author$project$QStore$Query$stringVar,
-		A2(
-			$author$project$QStore$Query$varApp,
-			$author$project$QStore$Query$idVar,
-			$author$project$QStore$Query$varPure(
-				F2(
-					function (id, name) {
-						return _Utils_Tuple2(id, name);
-					})))),
-	function (_v0) {
-		var id = _v0.a;
-		var name = _v0.b;
-		return A2(
-			$author$project$QStore$Query$app,
-			$author$project$QStore$Query$true(
-				{
-					attr: $author$project$QStore$Query$string('name'),
-					id: $author$project$QStore$Query$var(id),
-					tx: $author$project$QStore$Query$wildcard,
-					value: $author$project$QStore$Query$var(name)
-				}),
-			A2(
-				$author$project$QStore$Query$app,
-				$author$project$QStore$Query$true(
-					{
-						attr: $author$project$QStore$Query$string('is'),
-						id: $author$project$QStore$Query$var(id),
-						tx: $author$project$QStore$Query$wildcard,
-						value: $author$project$QStore$Query$string('album')
-					}),
-				$author$project$QStore$Query$pure(
-					F2(
-						function (a, b) {
-							return {id: a.id, name: b.value};
-						}))));
-	});
-var $author$project$QStore$Query$NetworkError = function (a) {
-	return {$: 'NetworkError', a: a};
-};
-var $elm$http$Http$BadBody = function (a) {
-	return {$: 'BadBody', a: a};
-};
-var $elm$core$Result$andThen = F2(
-	function (callback, result) {
-		if (result.$ === 'Ok') {
-			var value = result.a;
-			return callback(value);
-		} else {
-			var msg = result.a;
-			return $elm$core$Result$Err(msg);
-		}
-	});
-var $elm$http$Http$BadStatus_ = F2(
-	function (a, b) {
-		return {$: 'BadStatus_', a: a, b: b};
-	});
-var $elm$http$Http$BadUrl_ = function (a) {
-	return {$: 'BadUrl_', a: a};
-};
-var $elm$http$Http$GoodStatus_ = F2(
-	function (a, b) {
-		return {$: 'GoodStatus_', a: a, b: b};
-	});
-var $elm$http$Http$NetworkError_ = {$: 'NetworkError_'};
-var $elm$http$Http$Receiving = function (a) {
-	return {$: 'Receiving', a: a};
-};
-var $elm$http$Http$Sending = function (a) {
-	return {$: 'Sending', a: a};
-};
-var $elm$http$Http$Timeout_ = {$: 'Timeout_'};
-var $elm$core$Maybe$isJust = function (maybe) {
-	if (maybe.$ === 'Just') {
-		return true;
-	} else {
-		return false;
-	}
-};
-var $elm$core$Platform$sendToSelf = _Platform_sendToSelf;
-var $elm$core$Dict$getMin = function (dict) {
-	getMin:
-	while (true) {
-		if ((dict.$ === 'RBNode_elm_builtin') && (dict.d.$ === 'RBNode_elm_builtin')) {
-			var left = dict.d;
-			var $temp$dict = left;
-			dict = $temp$dict;
-			continue getMin;
-		} else {
-			return dict;
-		}
-	}
-};
-var $elm$core$Dict$moveRedLeft = function (dict) {
-	if (((dict.$ === 'RBNode_elm_builtin') && (dict.d.$ === 'RBNode_elm_builtin')) && (dict.e.$ === 'RBNode_elm_builtin')) {
-		if ((dict.e.d.$ === 'RBNode_elm_builtin') && (dict.e.d.a.$ === 'Red')) {
-			var clr = dict.a;
-			var k = dict.b;
-			var v = dict.c;
-			var _v1 = dict.d;
-			var lClr = _v1.a;
-			var lK = _v1.b;
-			var lV = _v1.c;
-			var lLeft = _v1.d;
-			var lRight = _v1.e;
-			var _v2 = dict.e;
-			var rClr = _v2.a;
-			var rK = _v2.b;
-			var rV = _v2.c;
-			var rLeft = _v2.d;
-			var _v3 = rLeft.a;
-			var rlK = rLeft.b;
-			var rlV = rLeft.c;
-			var rlL = rLeft.d;
-			var rlR = rLeft.e;
-			var rRight = _v2.e;
-			return A5(
-				$elm$core$Dict$RBNode_elm_builtin,
-				$elm$core$Dict$Red,
-				rlK,
-				rlV,
-				A5(
-					$elm$core$Dict$RBNode_elm_builtin,
-					$elm$core$Dict$Black,
-					k,
-					v,
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
-					rlL),
-				A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, rK, rV, rlR, rRight));
-		} else {
-			var clr = dict.a;
-			var k = dict.b;
-			var v = dict.c;
-			var _v4 = dict.d;
-			var lClr = _v4.a;
-			var lK = _v4.b;
-			var lV = _v4.c;
-			var lLeft = _v4.d;
-			var lRight = _v4.e;
-			var _v5 = dict.e;
-			var rClr = _v5.a;
-			var rK = _v5.b;
-			var rV = _v5.c;
-			var rLeft = _v5.d;
-			var rRight = _v5.e;
-			if (clr.$ === 'Black') {
-				return A5(
-					$elm$core$Dict$RBNode_elm_builtin,
-					$elm$core$Dict$Black,
-					k,
-					v,
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight));
-			} else {
-				return A5(
-					$elm$core$Dict$RBNode_elm_builtin,
-					$elm$core$Dict$Black,
-					k,
-					v,
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight));
-			}
-		}
-	} else {
-		return dict;
-	}
-};
-var $elm$core$Dict$moveRedRight = function (dict) {
-	if (((dict.$ === 'RBNode_elm_builtin') && (dict.d.$ === 'RBNode_elm_builtin')) && (dict.e.$ === 'RBNode_elm_builtin')) {
-		if ((dict.d.d.$ === 'RBNode_elm_builtin') && (dict.d.d.a.$ === 'Red')) {
-			var clr = dict.a;
-			var k = dict.b;
-			var v = dict.c;
-			var _v1 = dict.d;
-			var lClr = _v1.a;
-			var lK = _v1.b;
-			var lV = _v1.c;
-			var _v2 = _v1.d;
-			var _v3 = _v2.a;
-			var llK = _v2.b;
-			var llV = _v2.c;
-			var llLeft = _v2.d;
-			var llRight = _v2.e;
-			var lRight = _v1.e;
-			var _v4 = dict.e;
-			var rClr = _v4.a;
-			var rK = _v4.b;
-			var rV = _v4.c;
-			var rLeft = _v4.d;
-			var rRight = _v4.e;
-			return A5(
-				$elm$core$Dict$RBNode_elm_builtin,
-				$elm$core$Dict$Red,
-				lK,
-				lV,
-				A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, llK, llV, llLeft, llRight),
-				A5(
-					$elm$core$Dict$RBNode_elm_builtin,
-					$elm$core$Dict$Black,
-					k,
-					v,
-					lRight,
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight)));
-		} else {
-			var clr = dict.a;
-			var k = dict.b;
-			var v = dict.c;
-			var _v5 = dict.d;
-			var lClr = _v5.a;
-			var lK = _v5.b;
-			var lV = _v5.c;
-			var lLeft = _v5.d;
-			var lRight = _v5.e;
-			var _v6 = dict.e;
-			var rClr = _v6.a;
-			var rK = _v6.b;
-			var rV = _v6.c;
-			var rLeft = _v6.d;
-			var rRight = _v6.e;
-			if (clr.$ === 'Black') {
-				return A5(
-					$elm$core$Dict$RBNode_elm_builtin,
-					$elm$core$Dict$Black,
-					k,
-					v,
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight));
-			} else {
-				return A5(
-					$elm$core$Dict$RBNode_elm_builtin,
-					$elm$core$Dict$Black,
-					k,
-					v,
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight));
-			}
-		}
-	} else {
-		return dict;
-	}
-};
-var $elm$core$Dict$removeHelpPrepEQGT = F7(
-	function (targetKey, dict, color, key, value, left, right) {
-		if ((left.$ === 'RBNode_elm_builtin') && (left.a.$ === 'Red')) {
-			var _v1 = left.a;
-			var lK = left.b;
-			var lV = left.c;
-			var lLeft = left.d;
-			var lRight = left.e;
-			return A5(
-				$elm$core$Dict$RBNode_elm_builtin,
-				color,
-				lK,
-				lV,
-				lLeft,
-				A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, key, value, lRight, right));
-		} else {
-			_v2$2:
-			while (true) {
-				if ((right.$ === 'RBNode_elm_builtin') && (right.a.$ === 'Black')) {
-					if (right.d.$ === 'RBNode_elm_builtin') {
-						if (right.d.a.$ === 'Black') {
-							var _v3 = right.a;
-							var _v4 = right.d;
-							var _v5 = _v4.a;
-							return $elm$core$Dict$moveRedRight(dict);
-						} else {
-							break _v2$2;
-						}
-					} else {
-						var _v6 = right.a;
-						var _v7 = right.d;
-						return $elm$core$Dict$moveRedRight(dict);
-					}
-				} else {
-					break _v2$2;
-				}
-			}
-			return dict;
-		}
-	});
-var $elm$core$Dict$removeMin = function (dict) {
-	if ((dict.$ === 'RBNode_elm_builtin') && (dict.d.$ === 'RBNode_elm_builtin')) {
-		var color = dict.a;
-		var key = dict.b;
-		var value = dict.c;
-		var left = dict.d;
-		var lColor = left.a;
-		var lLeft = left.d;
-		var right = dict.e;
-		if (lColor.$ === 'Black') {
-			if ((lLeft.$ === 'RBNode_elm_builtin') && (lLeft.a.$ === 'Red')) {
-				var _v3 = lLeft.a;
-				return A5(
-					$elm$core$Dict$RBNode_elm_builtin,
-					color,
-					key,
-					value,
-					$elm$core$Dict$removeMin(left),
-					right);
-			} else {
-				var _v4 = $elm$core$Dict$moveRedLeft(dict);
-				if (_v4.$ === 'RBNode_elm_builtin') {
-					var nColor = _v4.a;
-					var nKey = _v4.b;
-					var nValue = _v4.c;
-					var nLeft = _v4.d;
-					var nRight = _v4.e;
-					return A5(
-						$elm$core$Dict$balance,
-						nColor,
-						nKey,
-						nValue,
-						$elm$core$Dict$removeMin(nLeft),
-						nRight);
-				} else {
-					return $elm$core$Dict$RBEmpty_elm_builtin;
-				}
-			}
-		} else {
-			return A5(
-				$elm$core$Dict$RBNode_elm_builtin,
-				color,
-				key,
-				value,
-				$elm$core$Dict$removeMin(left),
-				right);
-		}
-	} else {
-		return $elm$core$Dict$RBEmpty_elm_builtin;
-	}
-};
-var $elm$core$Dict$removeHelp = F2(
-	function (targetKey, dict) {
-		if (dict.$ === 'RBEmpty_elm_builtin') {
-			return $elm$core$Dict$RBEmpty_elm_builtin;
-		} else {
-			var color = dict.a;
-			var key = dict.b;
-			var value = dict.c;
-			var left = dict.d;
-			var right = dict.e;
-			if (_Utils_cmp(targetKey, key) < 0) {
-				if ((left.$ === 'RBNode_elm_builtin') && (left.a.$ === 'Black')) {
-					var _v4 = left.a;
-					var lLeft = left.d;
-					if ((lLeft.$ === 'RBNode_elm_builtin') && (lLeft.a.$ === 'Red')) {
-						var _v6 = lLeft.a;
-						return A5(
-							$elm$core$Dict$RBNode_elm_builtin,
-							color,
-							key,
-							value,
-							A2($elm$core$Dict$removeHelp, targetKey, left),
-							right);
-					} else {
-						var _v7 = $elm$core$Dict$moveRedLeft(dict);
-						if (_v7.$ === 'RBNode_elm_builtin') {
-							var nColor = _v7.a;
-							var nKey = _v7.b;
-							var nValue = _v7.c;
-							var nLeft = _v7.d;
-							var nRight = _v7.e;
-							return A5(
-								$elm$core$Dict$balance,
-								nColor,
-								nKey,
-								nValue,
-								A2($elm$core$Dict$removeHelp, targetKey, nLeft),
-								nRight);
-						} else {
-							return $elm$core$Dict$RBEmpty_elm_builtin;
-						}
-					}
-				} else {
-					return A5(
-						$elm$core$Dict$RBNode_elm_builtin,
-						color,
-						key,
-						value,
-						A2($elm$core$Dict$removeHelp, targetKey, left),
-						right);
-				}
-			} else {
-				return A2(
-					$elm$core$Dict$removeHelpEQGT,
-					targetKey,
-					A7($elm$core$Dict$removeHelpPrepEQGT, targetKey, dict, color, key, value, left, right));
-			}
-		}
-	});
-var $elm$core$Dict$removeHelpEQGT = F2(
-	function (targetKey, dict) {
-		if (dict.$ === 'RBNode_elm_builtin') {
-			var color = dict.a;
-			var key = dict.b;
-			var value = dict.c;
-			var left = dict.d;
-			var right = dict.e;
-			if (_Utils_eq(targetKey, key)) {
-				var _v1 = $elm$core$Dict$getMin(right);
-				if (_v1.$ === 'RBNode_elm_builtin') {
-					var minKey = _v1.b;
-					var minValue = _v1.c;
-					return A5(
-						$elm$core$Dict$balance,
-						color,
-						minKey,
-						minValue,
-						left,
-						$elm$core$Dict$removeMin(right));
-				} else {
-					return $elm$core$Dict$RBEmpty_elm_builtin;
-				}
-			} else {
-				return A5(
-					$elm$core$Dict$balance,
-					color,
-					key,
-					value,
-					left,
-					A2($elm$core$Dict$removeHelp, targetKey, right));
-			}
-		} else {
-			return $elm$core$Dict$RBEmpty_elm_builtin;
-		}
-	});
-var $elm$core$Dict$remove = F2(
-	function (key, dict) {
-		var _v0 = A2($elm$core$Dict$removeHelp, key, dict);
-		if ((_v0.$ === 'RBNode_elm_builtin') && (_v0.a.$ === 'Red')) {
-			var _v1 = _v0.a;
-			var k = _v0.b;
-			var v = _v0.c;
-			var l = _v0.d;
-			var r = _v0.e;
-			return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, k, v, l, r);
-		} else {
-			var x = _v0;
-			return x;
-		}
-	});
-var $elm$core$Dict$update = F3(
-	function (targetKey, alter, dictionary) {
-		var _v0 = alter(
-			A2($elm$core$Dict$get, targetKey, dictionary));
-		if (_v0.$ === 'Just') {
-			var value = _v0.a;
-			return A3($elm$core$Dict$insert, targetKey, value, dictionary);
-		} else {
-			return A2($elm$core$Dict$remove, targetKey, dictionary);
-		}
-	});
-var $elm$http$Http$expectStringResponse = F2(
-	function (toMsg, toResult) {
-		return A3(
-			_Http_expect,
-			'',
-			$elm$core$Basics$identity,
-			A2($elm$core$Basics$composeR, toResult, toMsg));
-	});
-var $elm$http$Http$BadStatus = function (a) {
-	return {$: 'BadStatus', a: a};
-};
-var $elm$http$Http$BadUrl = function (a) {
-	return {$: 'BadUrl', a: a};
-};
-var $elm$http$Http$NetworkError = {$: 'NetworkError'};
-var $elm$http$Http$Timeout = {$: 'Timeout'};
-var $elm$core$Result$mapError = F2(
-	function (f, result) {
-		if (result.$ === 'Ok') {
-			var v = result.a;
-			return $elm$core$Result$Ok(v);
-		} else {
-			var e = result.a;
-			return $elm$core$Result$Err(
-				f(e));
-		}
-	});
-var $elm$http$Http$resolve = F2(
-	function (toResult, response) {
-		switch (response.$) {
-			case 'BadUrl_':
-				var url = response.a;
-				return $elm$core$Result$Err(
-					$elm$http$Http$BadUrl(url));
-			case 'Timeout_':
-				return $elm$core$Result$Err($elm$http$Http$Timeout);
-			case 'NetworkError_':
-				return $elm$core$Result$Err($elm$http$Http$NetworkError);
-			case 'BadStatus_':
-				var metadata = response.a;
-				return $elm$core$Result$Err(
-					$elm$http$Http$BadStatus(metadata.statusCode));
-			default:
-				var body = response.b;
-				return A2(
-					$elm$core$Result$mapError,
-					$elm$http$Http$BadBody,
-					toResult(body));
-		}
-	});
-var $elm$http$Http$expectString = function (toMsg) {
-	return A2(
-		$elm$http$Http$expectStringResponse,
-		toMsg,
-		$elm$http$Http$resolve($elm$core$Result$Ok));
-};
-var $elm$parser$Parser$DeadEnd = F3(
-	function (row, col, problem) {
-		return {col: col, problem: problem, row: row};
-	});
-var $elm$parser$Parser$problemToDeadEnd = function (p) {
-	return A3($elm$parser$Parser$DeadEnd, p.row, p.col, p.problem);
-};
-var $elm$parser$Parser$Advanced$bagToList = F2(
-	function (bag, list) {
-		bagToList:
-		while (true) {
-			switch (bag.$) {
-				case 'Empty':
-					return list;
-				case 'AddRight':
-					var bag1 = bag.a;
-					var x = bag.b;
-					var $temp$bag = bag1,
-						$temp$list = A2($elm$core$List$cons, x, list);
-					bag = $temp$bag;
-					list = $temp$list;
-					continue bagToList;
-				default:
-					var bag1 = bag.a;
-					var bag2 = bag.b;
-					var $temp$bag = bag1,
-						$temp$list = A2($elm$parser$Parser$Advanced$bagToList, bag2, list);
-					bag = $temp$bag;
-					list = $temp$list;
-					continue bagToList;
-			}
-		}
-	});
-var $elm$parser$Parser$Advanced$run = F2(
-	function (_v0, src) {
-		var parse = _v0.a;
-		var _v1 = parse(
-			{col: 1, context: _List_Nil, indent: 1, offset: 0, row: 1, src: src});
-		if (_v1.$ === 'Good') {
-			var value = _v1.b;
-			return $elm$core$Result$Ok(value);
-		} else {
-			var bag = _v1.b;
-			return $elm$core$Result$Err(
-				A2($elm$parser$Parser$Advanced$bagToList, bag, _List_Nil));
-		}
-	});
-var $elm$parser$Parser$run = F2(
-	function (parser, source) {
-		var _v0 = A2($elm$parser$Parser$Advanced$run, parser, source);
-		if (_v0.$ === 'Ok') {
-			var a = _v0.a;
-			return $elm$core$Result$Ok(a);
-		} else {
-			var problems = _v0.a;
-			return $elm$core$Result$Err(
-				A2($elm$core$List$map, $elm$parser$Parser$problemToDeadEnd, problems));
-		}
-	});
-var $author$project$Sexpr$Bool = function (a) {
-	return {$: 'Bool', a: a};
-};
-var $elm$parser$Parser$Forbidden = {$: 'Forbidden'};
-var $author$project$Sexpr$Int = function (a) {
-	return {$: 'Int', a: a};
-};
-var $author$project$Sexpr$List = function (a) {
-	return {$: 'List', a: a};
-};
-var $author$project$Sexpr$Symbol = function (a) {
-	return {$: 'Symbol', a: a};
-};
-var $elm$core$Set$Set_elm_builtin = function (a) {
-	return {$: 'Set_elm_builtin', a: a};
-};
-var $elm$core$Set$empty = $elm$core$Set$Set_elm_builtin($elm$core$Dict$empty);
-var $elm$core$Set$insert = F2(
-	function (key, _v0) {
-		var dict = _v0.a;
-		return $elm$core$Set$Set_elm_builtin(
-			A3($elm$core$Dict$insert, key, _Utils_Tuple0, dict));
-	});
-var $elm$core$Set$fromList = function (list) {
-	return A3($elm$core$List$foldl, $elm$core$Set$insert, $elm$core$Set$empty, list);
-};
-var $elm$core$Basics$always = F2(
-	function (a, _v0) {
-		return a;
-	});
-var $elm$parser$Parser$Advanced$Bad = F2(
-	function (a, b) {
-		return {$: 'Bad', a: a, b: b};
-	});
-var $elm$parser$Parser$Advanced$Good = F3(
-	function (a, b, c) {
-		return {$: 'Good', a: a, b: b, c: c};
-	});
-var $elm$parser$Parser$Advanced$Parser = function (a) {
-	return {$: 'Parser', a: a};
-};
-var $elm$parser$Parser$Advanced$map2 = F3(
-	function (func, _v0, _v1) {
-		var parseA = _v0.a;
-		var parseB = _v1.a;
-		return $elm$parser$Parser$Advanced$Parser(
-			function (s0) {
-				var _v2 = parseA(s0);
-				if (_v2.$ === 'Bad') {
-					var p = _v2.a;
-					var x = _v2.b;
-					return A2($elm$parser$Parser$Advanced$Bad, p, x);
-				} else {
-					var p1 = _v2.a;
-					var a = _v2.b;
-					var s1 = _v2.c;
-					var _v3 = parseB(s1);
-					if (_v3.$ === 'Bad') {
-						var p2 = _v3.a;
-						var x = _v3.b;
-						return A2($elm$parser$Parser$Advanced$Bad, p1 || p2, x);
-					} else {
-						var p2 = _v3.a;
-						var b = _v3.b;
-						var s2 = _v3.c;
-						return A3(
-							$elm$parser$Parser$Advanced$Good,
-							p1 || p2,
-							A2(func, a, b),
-							s2);
-					}
-				}
-			});
-	});
-var $elm$parser$Parser$Advanced$ignorer = F2(
-	function (keepParser, ignoreParser) {
-		return A3($elm$parser$Parser$Advanced$map2, $elm$core$Basics$always, keepParser, ignoreParser);
-	});
-var $elm$parser$Parser$ignorer = $elm$parser$Parser$Advanced$ignorer;
-var $elm$parser$Parser$ExpectingInt = {$: 'ExpectingInt'};
-var $elm$parser$Parser$Advanced$consumeBase = _Parser_consumeBase;
-var $elm$parser$Parser$Advanced$consumeBase16 = _Parser_consumeBase16;
-var $elm$parser$Parser$Advanced$bumpOffset = F2(
-	function (newOffset, s) {
-		return {col: s.col + (newOffset - s.offset), context: s.context, indent: s.indent, offset: newOffset, row: s.row, src: s.src};
-	});
-var $elm$parser$Parser$Advanced$chompBase10 = _Parser_chompBase10;
-var $elm$parser$Parser$Advanced$isAsciiCode = _Parser_isAsciiCode;
-var $elm$parser$Parser$Advanced$consumeExp = F2(
-	function (offset, src) {
-		if (A3($elm$parser$Parser$Advanced$isAsciiCode, 101, offset, src) || A3($elm$parser$Parser$Advanced$isAsciiCode, 69, offset, src)) {
-			var eOffset = offset + 1;
-			var expOffset = (A3($elm$parser$Parser$Advanced$isAsciiCode, 43, eOffset, src) || A3($elm$parser$Parser$Advanced$isAsciiCode, 45, eOffset, src)) ? (eOffset + 1) : eOffset;
-			var newOffset = A2($elm$parser$Parser$Advanced$chompBase10, expOffset, src);
-			return _Utils_eq(expOffset, newOffset) ? (-newOffset) : newOffset;
-		} else {
-			return offset;
-		}
-	});
-var $elm$parser$Parser$Advanced$consumeDotAndExp = F2(
-	function (offset, src) {
-		return A3($elm$parser$Parser$Advanced$isAsciiCode, 46, offset, src) ? A2(
-			$elm$parser$Parser$Advanced$consumeExp,
-			A2($elm$parser$Parser$Advanced$chompBase10, offset + 1, src),
-			src) : A2($elm$parser$Parser$Advanced$consumeExp, offset, src);
-	});
-var $elm$parser$Parser$Advanced$AddRight = F2(
-	function (a, b) {
-		return {$: 'AddRight', a: a, b: b};
-	});
-var $elm$parser$Parser$Advanced$DeadEnd = F4(
-	function (row, col, problem, contextStack) {
-		return {col: col, contextStack: contextStack, problem: problem, row: row};
-	});
-var $elm$parser$Parser$Advanced$Empty = {$: 'Empty'};
-var $elm$parser$Parser$Advanced$fromState = F2(
-	function (s, x) {
-		return A2(
-			$elm$parser$Parser$Advanced$AddRight,
-			$elm$parser$Parser$Advanced$Empty,
-			A4($elm$parser$Parser$Advanced$DeadEnd, s.row, s.col, x, s.context));
-	});
-var $elm$parser$Parser$Advanced$finalizeInt = F5(
-	function (invalid, handler, startOffset, _v0, s) {
-		var endOffset = _v0.a;
-		var n = _v0.b;
-		if (handler.$ === 'Err') {
-			var x = handler.a;
-			return A2(
-				$elm$parser$Parser$Advanced$Bad,
-				true,
-				A2($elm$parser$Parser$Advanced$fromState, s, x));
-		} else {
-			var toValue = handler.a;
-			return _Utils_eq(startOffset, endOffset) ? A2(
-				$elm$parser$Parser$Advanced$Bad,
-				_Utils_cmp(s.offset, startOffset) < 0,
-				A2($elm$parser$Parser$Advanced$fromState, s, invalid)) : A3(
-				$elm$parser$Parser$Advanced$Good,
-				true,
-				toValue(n),
-				A2($elm$parser$Parser$Advanced$bumpOffset, endOffset, s));
-		}
-	});
-var $elm$parser$Parser$Advanced$fromInfo = F4(
-	function (row, col, x, context) {
-		return A2(
-			$elm$parser$Parser$Advanced$AddRight,
-			$elm$parser$Parser$Advanced$Empty,
-			A4($elm$parser$Parser$Advanced$DeadEnd, row, col, x, context));
-	});
-var $elm$core$String$slice = _String_slice;
-var $elm$core$String$toFloat = _String_toFloat;
-var $elm$parser$Parser$Advanced$finalizeFloat = F6(
-	function (invalid, expecting, intSettings, floatSettings, intPair, s) {
-		var intOffset = intPair.a;
-		var floatOffset = A2($elm$parser$Parser$Advanced$consumeDotAndExp, intOffset, s.src);
-		if (floatOffset < 0) {
-			return A2(
-				$elm$parser$Parser$Advanced$Bad,
-				true,
-				A4($elm$parser$Parser$Advanced$fromInfo, s.row, s.col - (floatOffset + s.offset), invalid, s.context));
-		} else {
-			if (_Utils_eq(s.offset, floatOffset)) {
-				return A2(
-					$elm$parser$Parser$Advanced$Bad,
-					false,
-					A2($elm$parser$Parser$Advanced$fromState, s, expecting));
-			} else {
-				if (_Utils_eq(intOffset, floatOffset)) {
-					return A5($elm$parser$Parser$Advanced$finalizeInt, invalid, intSettings, s.offset, intPair, s);
-				} else {
-					if (floatSettings.$ === 'Err') {
-						var x = floatSettings.a;
-						return A2(
-							$elm$parser$Parser$Advanced$Bad,
-							true,
-							A2($elm$parser$Parser$Advanced$fromState, s, invalid));
-					} else {
-						var toValue = floatSettings.a;
-						var _v1 = $elm$core$String$toFloat(
-							A3($elm$core$String$slice, s.offset, floatOffset, s.src));
+					$elm$core$List$map,
+					function (album) {
+						var _v1 = a.editing;
 						if (_v1.$ === 'Nothing') {
 							return A2(
-								$elm$parser$Parser$Advanced$Bad,
-								true,
-								A2($elm$parser$Parser$Advanced$fromState, s, invalid));
-						} else {
-							var n = _v1.a;
-							return A3(
-								$elm$parser$Parser$Advanced$Good,
-								true,
-								toValue(n),
-								A2($elm$parser$Parser$Advanced$bumpOffset, floatOffset, s));
-						}
-					}
-				}
-			}
-		}
-	});
-var $elm$parser$Parser$Advanced$number = function (c) {
-	return $elm$parser$Parser$Advanced$Parser(
-		function (s) {
-			if (A3($elm$parser$Parser$Advanced$isAsciiCode, 48, s.offset, s.src)) {
-				var zeroOffset = s.offset + 1;
-				var baseOffset = zeroOffset + 1;
-				return A3($elm$parser$Parser$Advanced$isAsciiCode, 120, zeroOffset, s.src) ? A5(
-					$elm$parser$Parser$Advanced$finalizeInt,
-					c.invalid,
-					c.hex,
-					baseOffset,
-					A2($elm$parser$Parser$Advanced$consumeBase16, baseOffset, s.src),
-					s) : (A3($elm$parser$Parser$Advanced$isAsciiCode, 111, zeroOffset, s.src) ? A5(
-					$elm$parser$Parser$Advanced$finalizeInt,
-					c.invalid,
-					c.octal,
-					baseOffset,
-					A3($elm$parser$Parser$Advanced$consumeBase, 8, baseOffset, s.src),
-					s) : (A3($elm$parser$Parser$Advanced$isAsciiCode, 98, zeroOffset, s.src) ? A5(
-					$elm$parser$Parser$Advanced$finalizeInt,
-					c.invalid,
-					c.binary,
-					baseOffset,
-					A3($elm$parser$Parser$Advanced$consumeBase, 2, baseOffset, s.src),
-					s) : A6(
-					$elm$parser$Parser$Advanced$finalizeFloat,
-					c.invalid,
-					c.expecting,
-					c._int,
-					c._float,
-					_Utils_Tuple2(zeroOffset, 0),
-					s)));
-			} else {
-				return A6(
-					$elm$parser$Parser$Advanced$finalizeFloat,
-					c.invalid,
-					c.expecting,
-					c._int,
-					c._float,
-					A3($elm$parser$Parser$Advanced$consumeBase, 10, s.offset, s.src),
-					s);
-			}
-		});
-};
-var $elm$parser$Parser$Advanced$int = F2(
-	function (expecting, invalid) {
-		return $elm$parser$Parser$Advanced$number(
-			{
-				binary: $elm$core$Result$Err(invalid),
-				expecting: expecting,
-				_float: $elm$core$Result$Err(invalid),
-				hex: $elm$core$Result$Err(invalid),
-				_int: $elm$core$Result$Ok($elm$core$Basics$identity),
-				invalid: invalid,
-				octal: $elm$core$Result$Err(invalid)
-			});
-	});
-var $elm$parser$Parser$int = A2($elm$parser$Parser$Advanced$int, $elm$parser$Parser$ExpectingInt, $elm$parser$Parser$ExpectingInt);
-var $elm$core$Dict$member = F2(
-	function (key, dict) {
-		var _v0 = A2($elm$core$Dict$get, key, dict);
-		if (_v0.$ === 'Just') {
-			return true;
-		} else {
-			return false;
-		}
-	});
-var $elm$core$Set$member = F2(
-	function (key, _v0) {
-		var dict = _v0.a;
-		return A2($elm$core$Dict$member, key, dict);
-	});
-var $author$project$Sexpr$isSymbol = function (c) {
-	return !A2(
-		$elm$core$Set$member,
-		c,
-		$elm$core$Set$fromList(
-			_List_fromArray(
-				[
-					_Utils_chr(' '),
-					_Utils_chr('\n'),
-					_Utils_chr('\r'),
-					_Utils_chr('('),
-					_Utils_chr(')'),
-					_Utils_chr('\"')
-				])));
-};
-var $elm$parser$Parser$Advanced$lazy = function (thunk) {
-	return $elm$parser$Parser$Advanced$Parser(
-		function (s) {
-			var _v0 = thunk(_Utils_Tuple0);
-			var parse = _v0.a;
-			return parse(s);
-		});
-};
-var $elm$parser$Parser$lazy = $elm$parser$Parser$Advanced$lazy;
-var $elm$parser$Parser$Advanced$map = F2(
-	function (func, _v0) {
-		var parse = _v0.a;
-		return $elm$parser$Parser$Advanced$Parser(
-			function (s0) {
-				var _v1 = parse(s0);
-				if (_v1.$ === 'Good') {
-					var p = _v1.a;
-					var a = _v1.b;
-					var s1 = _v1.c;
-					return A3(
-						$elm$parser$Parser$Advanced$Good,
-						p,
-						func(a),
-						s1);
-				} else {
-					var p = _v1.a;
-					var x = _v1.b;
-					return A2($elm$parser$Parser$Advanced$Bad, p, x);
-				}
-			});
-	});
-var $elm$parser$Parser$map = $elm$parser$Parser$Advanced$map;
-var $elm$parser$Parser$Advanced$Append = F2(
-	function (a, b) {
-		return {$: 'Append', a: a, b: b};
-	});
-var $elm$parser$Parser$Advanced$oneOfHelp = F3(
-	function (s0, bag, parsers) {
-		oneOfHelp:
-		while (true) {
-			if (!parsers.b) {
-				return A2($elm$parser$Parser$Advanced$Bad, false, bag);
-			} else {
-				var parse = parsers.a.a;
-				var remainingParsers = parsers.b;
-				var _v1 = parse(s0);
-				if (_v1.$ === 'Good') {
-					var step = _v1;
-					return step;
-				} else {
-					var step = _v1;
-					var p = step.a;
-					var x = step.b;
-					if (p) {
-						return step;
-					} else {
-						var $temp$s0 = s0,
-							$temp$bag = A2($elm$parser$Parser$Advanced$Append, bag, x),
-							$temp$parsers = remainingParsers;
-						s0 = $temp$s0;
-						bag = $temp$bag;
-						parsers = $temp$parsers;
-						continue oneOfHelp;
-					}
-				}
-			}
-		}
-	});
-var $elm$parser$Parser$Advanced$oneOf = function (parsers) {
-	return $elm$parser$Parser$Advanced$Parser(
-		function (s) {
-			return A3($elm$parser$Parser$Advanced$oneOfHelp, s, $elm$parser$Parser$Advanced$Empty, parsers);
-		});
-};
-var $elm$parser$Parser$oneOf = $elm$parser$Parser$Advanced$oneOf;
-var $elm$parser$Parser$Advanced$andThen = F2(
-	function (callback, _v0) {
-		var parseA = _v0.a;
-		return $elm$parser$Parser$Advanced$Parser(
-			function (s0) {
-				var _v1 = parseA(s0);
-				if (_v1.$ === 'Bad') {
-					var p = _v1.a;
-					var x = _v1.b;
-					return A2($elm$parser$Parser$Advanced$Bad, p, x);
-				} else {
-					var p1 = _v1.a;
-					var a = _v1.b;
-					var s1 = _v1.c;
-					var _v2 = callback(a);
-					var parseB = _v2.a;
-					var _v3 = parseB(s1);
-					if (_v3.$ === 'Bad') {
-						var p2 = _v3.a;
-						var x = _v3.b;
-						return A2($elm$parser$Parser$Advanced$Bad, p1 || p2, x);
-					} else {
-						var p2 = _v3.a;
-						var b = _v3.b;
-						var s2 = _v3.c;
-						return A3($elm$parser$Parser$Advanced$Good, p1 || p2, b, s2);
-					}
-				}
-			});
-	});
-var $elm$parser$Parser$Advanced$loopHelp = F4(
-	function (p, state, callback, s0) {
-		loopHelp:
-		while (true) {
-			var _v0 = callback(state);
-			var parse = _v0.a;
-			var _v1 = parse(s0);
-			if (_v1.$ === 'Good') {
-				var p1 = _v1.a;
-				var step = _v1.b;
-				var s1 = _v1.c;
-				if (step.$ === 'Loop') {
-					var newState = step.a;
-					var $temp$p = p || p1,
-						$temp$state = newState,
-						$temp$callback = callback,
-						$temp$s0 = s1;
-					p = $temp$p;
-					state = $temp$state;
-					callback = $temp$callback;
-					s0 = $temp$s0;
-					continue loopHelp;
-				} else {
-					var result = step.a;
-					return A3($elm$parser$Parser$Advanced$Good, p || p1, result, s1);
-				}
-			} else {
-				var p1 = _v1.a;
-				var x = _v1.b;
-				return A2($elm$parser$Parser$Advanced$Bad, p || p1, x);
-			}
-		}
-	});
-var $elm$parser$Parser$Advanced$loop = F2(
-	function (state, callback) {
-		return $elm$parser$Parser$Advanced$Parser(
-			function (s) {
-				return A4($elm$parser$Parser$Advanced$loopHelp, false, state, callback, s);
-			});
-	});
-var $elm$parser$Parser$Advanced$Done = function (a) {
-	return {$: 'Done', a: a};
-};
-var $elm$parser$Parser$Advanced$Loop = function (a) {
-	return {$: 'Loop', a: a};
-};
-var $elm$parser$Parser$Advanced$revAlways = F2(
-	function (_v0, b) {
-		return b;
-	});
-var $elm$parser$Parser$Advanced$skip = F2(
-	function (iParser, kParser) {
-		return A3($elm$parser$Parser$Advanced$map2, $elm$parser$Parser$Advanced$revAlways, iParser, kParser);
-	});
-var $elm$parser$Parser$Advanced$sequenceEndForbidden = F5(
-	function (ender, ws, parseItem, sep, revItems) {
-		var chompRest = function (item) {
-			return A5(
-				$elm$parser$Parser$Advanced$sequenceEndForbidden,
-				ender,
-				ws,
-				parseItem,
-				sep,
-				A2($elm$core$List$cons, item, revItems));
-		};
-		return A2(
-			$elm$parser$Parser$Advanced$skip,
-			ws,
-			$elm$parser$Parser$Advanced$oneOf(
-				_List_fromArray(
-					[
-						A2(
-						$elm$parser$Parser$Advanced$skip,
-						sep,
-						A2(
-							$elm$parser$Parser$Advanced$skip,
-							ws,
-							A2(
-								$elm$parser$Parser$Advanced$map,
-								function (item) {
-									return $elm$parser$Parser$Advanced$Loop(
-										A2($elm$core$List$cons, item, revItems));
+								$author$project$Album$view,
+								{
+									edit: $author$project$Main$EditAlbum(album),
+									view: $author$project$Main$ViewAlbum(album)
 								},
-								parseItem))),
-						A2(
-						$elm$parser$Parser$Advanced$map,
-						function (_v0) {
-							return $elm$parser$Parser$Advanced$Done(
-								$elm$core$List$reverse(revItems));
-						},
-						ender)
-					])));
-	});
-var $elm$parser$Parser$Advanced$succeed = function (a) {
-	return $elm$parser$Parser$Advanced$Parser(
-		function (s) {
-			return A3($elm$parser$Parser$Advanced$Good, false, a, s);
-		});
-};
-var $elm$parser$Parser$Advanced$sequenceEndMandatory = F4(
-	function (ws, parseItem, sep, revItems) {
-		return $elm$parser$Parser$Advanced$oneOf(
-			_List_fromArray(
-				[
-					A2(
-					$elm$parser$Parser$Advanced$map,
-					function (item) {
-						return $elm$parser$Parser$Advanced$Loop(
-							A2($elm$core$List$cons, item, revItems));
-					},
-					A2(
-						$elm$parser$Parser$Advanced$ignorer,
-						parseItem,
-						A2(
-							$elm$parser$Parser$Advanced$ignorer,
-							ws,
-							A2($elm$parser$Parser$Advanced$ignorer, sep, ws)))),
-					A2(
-					$elm$parser$Parser$Advanced$map,
-					function (_v0) {
-						return $elm$parser$Parser$Advanced$Done(
-							$elm$core$List$reverse(revItems));
-					},
-					$elm$parser$Parser$Advanced$succeed(_Utils_Tuple0))
-				]));
-	});
-var $elm$parser$Parser$Advanced$sequenceEndOptional = F5(
-	function (ender, ws, parseItem, sep, revItems) {
-		var parseEnd = A2(
-			$elm$parser$Parser$Advanced$map,
-			function (_v0) {
-				return $elm$parser$Parser$Advanced$Done(
-					$elm$core$List$reverse(revItems));
-			},
-			ender);
-		return A2(
-			$elm$parser$Parser$Advanced$skip,
-			ws,
-			$elm$parser$Parser$Advanced$oneOf(
-				_List_fromArray(
-					[
-						A2(
-						$elm$parser$Parser$Advanced$skip,
-						sep,
-						A2(
-							$elm$parser$Parser$Advanced$skip,
-							ws,
-							$elm$parser$Parser$Advanced$oneOf(
-								_List_fromArray(
-									[
-										A2(
-										$elm$parser$Parser$Advanced$map,
-										function (item) {
-											return $elm$parser$Parser$Advanced$Loop(
-												A2($elm$core$List$cons, item, revItems));
-										},
-										parseItem),
-										parseEnd
-									])))),
-						parseEnd
-					])));
-	});
-var $elm$parser$Parser$Advanced$sequenceEnd = F5(
-	function (ender, ws, parseItem, sep, trailing) {
-		var chompRest = function (item) {
-			switch (trailing.$) {
-				case 'Forbidden':
-					return A2(
-						$elm$parser$Parser$Advanced$loop,
-						_List_fromArray(
-							[item]),
-						A4($elm$parser$Parser$Advanced$sequenceEndForbidden, ender, ws, parseItem, sep));
-				case 'Optional':
-					return A2(
-						$elm$parser$Parser$Advanced$loop,
-						_List_fromArray(
-							[item]),
-						A4($elm$parser$Parser$Advanced$sequenceEndOptional, ender, ws, parseItem, sep));
-				default:
-					return A2(
-						$elm$parser$Parser$Advanced$ignorer,
-						A2(
-							$elm$parser$Parser$Advanced$skip,
-							ws,
-							A2(
-								$elm$parser$Parser$Advanced$skip,
-								sep,
-								A2(
-									$elm$parser$Parser$Advanced$skip,
-									ws,
-									A2(
-										$elm$parser$Parser$Advanced$loop,
-										_List_fromArray(
-											[item]),
-										A3($elm$parser$Parser$Advanced$sequenceEndMandatory, ws, parseItem, sep))))),
-						ender);
-			}
-		};
-		return $elm$parser$Parser$Advanced$oneOf(
-			_List_fromArray(
-				[
-					A2($elm$parser$Parser$Advanced$andThen, chompRest, parseItem),
-					A2(
-					$elm$parser$Parser$Advanced$map,
-					function (_v0) {
-						return _List_Nil;
-					},
-					ender)
-				]));
-	});
-var $elm$parser$Parser$Advanced$isSubString = _Parser_isSubString;
-var $elm$parser$Parser$Advanced$token = function (_v0) {
-	var str = _v0.a;
-	var expecting = _v0.b;
-	var progress = !$elm$core$String$isEmpty(str);
-	return $elm$parser$Parser$Advanced$Parser(
-		function (s) {
-			var _v1 = A5($elm$parser$Parser$Advanced$isSubString, str, s.offset, s.row, s.col, s.src);
-			var newOffset = _v1.a;
-			var newRow = _v1.b;
-			var newCol = _v1.c;
-			return _Utils_eq(newOffset, -1) ? A2(
-				$elm$parser$Parser$Advanced$Bad,
-				false,
-				A2($elm$parser$Parser$Advanced$fromState, s, expecting)) : A3(
-				$elm$parser$Parser$Advanced$Good,
-				progress,
-				_Utils_Tuple0,
-				{col: newCol, context: s.context, indent: s.indent, offset: newOffset, row: newRow, src: s.src});
-		});
-};
-var $elm$parser$Parser$Advanced$sequence = function (i) {
-	return A2(
-		$elm$parser$Parser$Advanced$skip,
-		$elm$parser$Parser$Advanced$token(i.start),
-		A2(
-			$elm$parser$Parser$Advanced$skip,
-			i.spaces,
-			A5(
-				$elm$parser$Parser$Advanced$sequenceEnd,
-				$elm$parser$Parser$Advanced$token(i.end),
-				i.spaces,
-				i.item,
-				$elm$parser$Parser$Advanced$token(i.separator),
-				i.trailing)));
-};
-var $elm$parser$Parser$Advanced$Forbidden = {$: 'Forbidden'};
-var $elm$parser$Parser$Advanced$Mandatory = {$: 'Mandatory'};
-var $elm$parser$Parser$Advanced$Optional = {$: 'Optional'};
-var $elm$parser$Parser$toAdvancedTrailing = function (trailing) {
-	switch (trailing.$) {
-		case 'Forbidden':
-			return $elm$parser$Parser$Advanced$Forbidden;
-		case 'Optional':
-			return $elm$parser$Parser$Advanced$Optional;
-		default:
-			return $elm$parser$Parser$Advanced$Mandatory;
-	}
-};
-var $elm$parser$Parser$Expecting = function (a) {
-	return {$: 'Expecting', a: a};
-};
-var $elm$parser$Parser$Advanced$Token = F2(
-	function (a, b) {
-		return {$: 'Token', a: a, b: b};
-	});
-var $elm$parser$Parser$toToken = function (str) {
-	return A2(
-		$elm$parser$Parser$Advanced$Token,
-		str,
-		$elm$parser$Parser$Expecting(str));
-};
-var $elm$parser$Parser$sequence = function (i) {
-	return $elm$parser$Parser$Advanced$sequence(
-		{
-			end: $elm$parser$Parser$toToken(i.end),
-			item: i.item,
-			separator: $elm$parser$Parser$toToken(i.separator),
-			spaces: i.spaces,
-			start: $elm$parser$Parser$toToken(i.start),
-			trailing: $elm$parser$Parser$toAdvancedTrailing(i.trailing)
-		});
-};
-var $elm$parser$Parser$Advanced$isSubChar = _Parser_isSubChar;
-var $elm$parser$Parser$Advanced$chompWhileHelp = F5(
-	function (isGood, offset, row, col, s0) {
-		chompWhileHelp:
-		while (true) {
-			var newOffset = A3($elm$parser$Parser$Advanced$isSubChar, isGood, offset, s0.src);
-			if (_Utils_eq(newOffset, -1)) {
-				return A3(
-					$elm$parser$Parser$Advanced$Good,
-					_Utils_cmp(s0.offset, offset) < 0,
-					_Utils_Tuple0,
-					{col: col, context: s0.context, indent: s0.indent, offset: offset, row: row, src: s0.src});
-			} else {
-				if (_Utils_eq(newOffset, -2)) {
-					var $temp$isGood = isGood,
-						$temp$offset = offset + 1,
-						$temp$row = row + 1,
-						$temp$col = 1,
-						$temp$s0 = s0;
-					isGood = $temp$isGood;
-					offset = $temp$offset;
-					row = $temp$row;
-					col = $temp$col;
-					s0 = $temp$s0;
-					continue chompWhileHelp;
-				} else {
-					var $temp$isGood = isGood,
-						$temp$offset = newOffset,
-						$temp$row = row,
-						$temp$col = col + 1,
-						$temp$s0 = s0;
-					isGood = $temp$isGood;
-					offset = $temp$offset;
-					row = $temp$row;
-					col = $temp$col;
-					s0 = $temp$s0;
-					continue chompWhileHelp;
-				}
-			}
-		}
-	});
-var $elm$parser$Parser$Advanced$chompWhile = function (isGood) {
-	return $elm$parser$Parser$Advanced$Parser(
-		function (s) {
-			return A5($elm$parser$Parser$Advanced$chompWhileHelp, isGood, s.offset, s.row, s.col, s);
-		});
-};
-var $elm$parser$Parser$Advanced$spaces = $elm$parser$Parser$Advanced$chompWhile(
-	function (c) {
-		return _Utils_eq(
-			c,
-			_Utils_chr(' ')) || (_Utils_eq(
-			c,
-			_Utils_chr('\n')) || _Utils_eq(
-			c,
-			_Utils_chr('\r')));
-	});
-var $elm$parser$Parser$spaces = $elm$parser$Parser$Advanced$spaces;
-var $elm$parser$Parser$Done = function (a) {
-	return {$: 'Done', a: a};
-};
-var $elm$parser$Parser$Loop = function (a) {
-	return {$: 'Loop', a: a};
-};
-var $author$project$Sexpr$String = function (a) {
-	return {$: 'String', a: a};
-};
-var $elm$parser$Parser$UnexpectedChar = {$: 'UnexpectedChar'};
-var $elm$parser$Parser$Advanced$chompIf = F2(
-	function (isGood, expecting) {
-		return $elm$parser$Parser$Advanced$Parser(
-			function (s) {
-				var newOffset = A3($elm$parser$Parser$Advanced$isSubChar, isGood, s.offset, s.src);
-				return _Utils_eq(newOffset, -1) ? A2(
-					$elm$parser$Parser$Advanced$Bad,
-					false,
-					A2($elm$parser$Parser$Advanced$fromState, s, expecting)) : (_Utils_eq(newOffset, -2) ? A3(
-					$elm$parser$Parser$Advanced$Good,
-					true,
-					_Utils_Tuple0,
-					{col: 1, context: s.context, indent: s.indent, offset: s.offset + 1, row: s.row + 1, src: s.src}) : A3(
-					$elm$parser$Parser$Advanced$Good,
-					true,
-					_Utils_Tuple0,
-					{col: s.col + 1, context: s.context, indent: s.indent, offset: newOffset, row: s.row, src: s.src}));
-			});
-	});
-var $elm$parser$Parser$chompIf = function (isGood) {
-	return A2($elm$parser$Parser$Advanced$chompIf, isGood, $elm$parser$Parser$UnexpectedChar);
-};
-var $elm$parser$Parser$chompWhile = $elm$parser$Parser$Advanced$chompWhile;
-var $elm$parser$Parser$Advanced$mapChompedString = F2(
-	function (func, _v0) {
-		var parse = _v0.a;
-		return $elm$parser$Parser$Advanced$Parser(
-			function (s0) {
-				var _v1 = parse(s0);
-				if (_v1.$ === 'Bad') {
-					var p = _v1.a;
-					var x = _v1.b;
-					return A2($elm$parser$Parser$Advanced$Bad, p, x);
-				} else {
-					var p = _v1.a;
-					var a = _v1.b;
-					var s1 = _v1.c;
-					return A3(
-						$elm$parser$Parser$Advanced$Good,
-						p,
-						A2(
-							func,
-							A3($elm$core$String$slice, s0.offset, s1.offset, s0.src),
-							a),
-						s1);
-				}
-			});
-	});
-var $elm$parser$Parser$Advanced$getChompedString = function (parser) {
-	return A2($elm$parser$Parser$Advanced$mapChompedString, $elm$core$Basics$always, parser);
-};
-var $elm$parser$Parser$getChompedString = $elm$parser$Parser$Advanced$getChompedString;
-var $elm$parser$Parser$Advanced$keeper = F2(
-	function (parseFunc, parseArg) {
-		return A3($elm$parser$Parser$Advanced$map2, $elm$core$Basics$apL, parseFunc, parseArg);
-	});
-var $elm$parser$Parser$keeper = $elm$parser$Parser$Advanced$keeper;
-var $elm$parser$Parser$toAdvancedStep = function (step) {
-	if (step.$ === 'Loop') {
-		var s = step.a;
-		return $elm$parser$Parser$Advanced$Loop(s);
-	} else {
-		var a = step.a;
-		return $elm$parser$Parser$Advanced$Done(a);
-	}
-};
-var $elm$parser$Parser$loop = F2(
-	function (state, callback) {
-		return A2(
-			$elm$parser$Parser$Advanced$loop,
-			state,
-			function (s) {
-				return A2(
-					$elm$parser$Parser$map,
-					$elm$parser$Parser$toAdvancedStep,
-					callback(s));
-			});
-	});
-var $elm$parser$Parser$succeed = $elm$parser$Parser$Advanced$succeed;
-var $author$project$Sexpr$stringP = A2(
-	$elm$parser$Parser$keeper,
-	A2(
-		$elm$parser$Parser$ignorer,
-		$elm$parser$Parser$succeed($author$project$Sexpr$String),
-		$elm$parser$Parser$chompIf(
-			function (c) {
-				return _Utils_eq(
-					c,
-					_Utils_chr('\"'));
-			})),
-	A2(
-		$elm$parser$Parser$loop,
-		'',
-		function (s) {
-			return $elm$parser$Parser$oneOf(
-				_List_fromArray(
-					[
-						A2(
-						$elm$parser$Parser$keeper,
-						A2(
-							$elm$parser$Parser$ignorer,
-							$elm$parser$Parser$succeed(
-								function (t) {
-									return $elm$parser$Parser$Loop(
-										A2($elm$core$String$append, s, t));
-								}),
-							$elm$parser$Parser$chompIf(
-								function (c) {
-									return _Utils_eq(
-										c,
-										_Utils_chr('\\'));
-								})),
-						$elm$parser$Parser$getChompedString(
-							$elm$parser$Parser$chompIf(
-								function (_v0) {
-									return true;
-								}))),
-						A2(
-						$elm$parser$Parser$ignorer,
-						$elm$parser$Parser$succeed(
-							$elm$parser$Parser$Done(s)),
-						$elm$parser$Parser$chompIf(
-							function (c) {
-								return _Utils_eq(
-									c,
-									_Utils_chr('\"'));
-							})),
-						A2(
-						$elm$parser$Parser$keeper,
-						$elm$parser$Parser$succeed(
-							function (t) {
-								return $elm$parser$Parser$Loop(
-									A2($elm$core$String$append, s, t));
-							}),
-						$elm$parser$Parser$getChompedString(
-							$elm$parser$Parser$chompWhile(
-								function (c) {
-									return (!_Utils_eq(
-										c,
-										_Utils_chr('\\'))) && (!_Utils_eq(
-										c,
-										_Utils_chr('\"')));
-								})))
-					]));
-		}));
-var $elm$parser$Parser$token = function (str) {
-	return $elm$parser$Parser$Advanced$token(
-		$elm$parser$Parser$toToken(str));
-};
-var $elm$parser$Parser$ExpectingVariable = {$: 'ExpectingVariable'};
-var $elm$parser$Parser$Advanced$varHelp = F7(
-	function (isGood, offset, row, col, src, indent, context) {
-		varHelp:
-		while (true) {
-			var newOffset = A3($elm$parser$Parser$Advanced$isSubChar, isGood, offset, src);
-			if (_Utils_eq(newOffset, -1)) {
-				return {col: col, context: context, indent: indent, offset: offset, row: row, src: src};
-			} else {
-				if (_Utils_eq(newOffset, -2)) {
-					var $temp$isGood = isGood,
-						$temp$offset = offset + 1,
-						$temp$row = row + 1,
-						$temp$col = 1,
-						$temp$src = src,
-						$temp$indent = indent,
-						$temp$context = context;
-					isGood = $temp$isGood;
-					offset = $temp$offset;
-					row = $temp$row;
-					col = $temp$col;
-					src = $temp$src;
-					indent = $temp$indent;
-					context = $temp$context;
-					continue varHelp;
-				} else {
-					var $temp$isGood = isGood,
-						$temp$offset = newOffset,
-						$temp$row = row,
-						$temp$col = col + 1,
-						$temp$src = src,
-						$temp$indent = indent,
-						$temp$context = context;
-					isGood = $temp$isGood;
-					offset = $temp$offset;
-					row = $temp$row;
-					col = $temp$col;
-					src = $temp$src;
-					indent = $temp$indent;
-					context = $temp$context;
-					continue varHelp;
-				}
-			}
-		}
-	});
-var $elm$parser$Parser$Advanced$variable = function (i) {
-	return $elm$parser$Parser$Advanced$Parser(
-		function (s) {
-			var firstOffset = A3($elm$parser$Parser$Advanced$isSubChar, i.start, s.offset, s.src);
-			if (_Utils_eq(firstOffset, -1)) {
-				return A2(
-					$elm$parser$Parser$Advanced$Bad,
-					false,
-					A2($elm$parser$Parser$Advanced$fromState, s, i.expecting));
-			} else {
-				var s1 = _Utils_eq(firstOffset, -2) ? A7($elm$parser$Parser$Advanced$varHelp, i.inner, s.offset + 1, s.row + 1, 1, s.src, s.indent, s.context) : A7($elm$parser$Parser$Advanced$varHelp, i.inner, firstOffset, s.row, s.col + 1, s.src, s.indent, s.context);
-				var name = A3($elm$core$String$slice, s.offset, s1.offset, s.src);
-				return A2($elm$core$Set$member, name, i.reserved) ? A2(
-					$elm$parser$Parser$Advanced$Bad,
-					false,
-					A2($elm$parser$Parser$Advanced$fromState, s, i.expecting)) : A3($elm$parser$Parser$Advanced$Good, true, name, s1);
-			}
-		});
-};
-var $elm$parser$Parser$variable = function (i) {
-	return $elm$parser$Parser$Advanced$variable(
-		{expecting: $elm$parser$Parser$ExpectingVariable, inner: i.inner, reserved: i.reserved, start: i.start});
-};
-function $author$project$Sexpr$cyclic$sexprP() {
-	return $elm$parser$Parser$oneOf(
-		_List_fromArray(
-			[
-				A2(
-				$elm$parser$Parser$map,
-				$author$project$Sexpr$List,
-				$elm$parser$Parser$sequence(
-					{
-						end: ')',
-						item: $elm$parser$Parser$lazy(
-							function (_v0) {
-								return $author$project$Sexpr$cyclic$sexprP();
-							}),
-						separator: '',
-						spaces: $elm$parser$Parser$spaces,
-						start: '(',
-						trailing: $elm$parser$Parser$Forbidden
-					})),
-				A2($elm$parser$Parser$map, $author$project$Sexpr$Int, $elm$parser$Parser$int),
-				A2(
-				$elm$parser$Parser$map,
-				$author$project$Sexpr$Symbol,
-				$elm$parser$Parser$variable(
-					{
-						inner: $author$project$Sexpr$isSymbol,
-						reserved: $elm$core$Set$fromList(
-							_List_fromArray(
-								['#t', '#f'])),
-						start: $author$project$Sexpr$isSymbol
-					})),
-				$author$project$Sexpr$stringP,
-				$elm$parser$Parser$oneOf(
-				_List_fromArray(
-					[
-						A2(
-						$elm$parser$Parser$ignorer,
-						$elm$parser$Parser$succeed(
-							$author$project$Sexpr$Bool(true)),
-						$elm$parser$Parser$token('#t')),
-						A2(
-						$elm$parser$Parser$ignorer,
-						$elm$parser$Parser$succeed(
-							$author$project$Sexpr$Bool(false)),
-						$elm$parser$Parser$token('#f'))
-					]))
-			]));
-}
-try {
-	var $author$project$Sexpr$sexprP = $author$project$Sexpr$cyclic$sexprP();
-	$author$project$Sexpr$cyclic$sexprP = function () {
-		return $author$project$Sexpr$sexprP;
-	};
-} catch ($) {
-	throw 'Some top-level definitions from `Sexpr` are causing infinite recursion:\n\n  ┌─────┐\n  │    sexprP\n  └─────┘\n\nThese errors are very tricky, so read https://elm-lang.org/0.19.1/bad-recursion to learn how to fix it!';}
-var $author$project$Sexpr$expectSexpr = function (f) {
-	return $elm$http$Http$expectString(
-		function (r) {
-			return f(
-				A2(
-					$elm$core$Result$andThen,
-					function (s) {
-						var _v0 = A2($elm$parser$Parser$run, $author$project$Sexpr$sexprP, s);
-						if (_v0.$ === 'Ok') {
-							var sexpr = _v0.a;
-							return $elm$core$Result$Ok(sexpr);
+								album);
 						} else {
-							return $elm$core$Result$Err(
-								$elm$http$Http$BadBody('Failed to parse sexpr'));
+							var editingAlbum = _v1.a;
+							return A2($author$project$QStore$Core$idEq, editingAlbum.id, album.id) ? A2(
+								$author$project$Album$editingView,
+								{
+									submitEdit: $author$project$Main$UpdateAlbum(album),
+									updateEdit: $author$project$Main$EditAlbum
+								},
+								editingAlbum) : A2(
+								$author$project$Album$view,
+								{
+									edit: $author$project$Main$EditAlbum(album),
+									view: $author$project$Main$ViewAlbum(album)
+								},
+								album);
 						}
 					},
-					r));
-		});
-};
-var $elm$core$Dict$fromList = function (assocs) {
-	return A3(
-		$elm$core$List$foldl,
-		F2(
-			function (_v0, dict) {
-				var key = _v0.a;
-				var value = _v0.b;
-				return A3($elm$core$Dict$insert, key, value, dict);
-			}),
-		$elm$core$Dict$empty,
-		assocs);
-};
-var $elm$core$Maybe$map2 = F3(
-	function (func, ma, mb) {
-		if (ma.$ === 'Nothing') {
-			return $elm$core$Maybe$Nothing;
-		} else {
-			var a = ma.a;
-			if (mb.$ === 'Nothing') {
-				return $elm$core$Maybe$Nothing;
-			} else {
-				var b = mb.a;
-				return $elm$core$Maybe$Just(
-					A2(func, a, b));
-			}
-		}
-	});
-var $author$project$QStore$Query$sequenceMaybe = function (l) {
-	if (!l.b) {
-		return $elm$core$Maybe$Just(_List_Nil);
-	} else {
-		var res = l.a;
-		var ress = l.b;
-		return A3(
-			$elm$core$Maybe$map2,
-			F2(
-				function (resOk, ressOk) {
-					return A2($elm$core$List$cons, resOk, ressOk);
-				}),
-			res,
-			$author$project$QStore$Query$sequenceMaybe(ress));
-	}
-};
-var $author$project$QStore$Core$SHA256HashBase16 = function (a) {
-	return {$: 'SHA256HashBase16', a: a};
-};
-var $author$project$QStore$Core$VFileHandle = function (a) {
-	return {$: 'VFileHandle', a: a};
-};
-var $author$project$QStore$Core$VId = function (a) {
-	return {$: 'VId', a: a};
-};
-var $author$project$QStore$Core$VInt = function (a) {
-	return {$: 'VInt', a: a};
-};
-var $author$project$QStore$Core$Id = function (a) {
-	return {$: 'Id', a: a};
-};
-var $author$project$QStore$Core$idFromSexpr = function (s) {
-	if (((((((s.$ === 'List') && s.a.b) && (s.a.a.$ === 'Symbol')) && (s.a.a.a === 'id')) && s.a.b.b) && (s.a.b.a.$ === 'Int')) && (!s.a.b.b.b)) {
-		var _v1 = s.a;
-		var _v2 = _v1.b;
-		var id = _v2.a.a;
-		return $elm$core$Maybe$Just(
-			$author$project$QStore$Core$Id(id));
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
-};
-var $author$project$QStore$Core$valueFromSexpr = function (s) {
-	_v0$3:
-	while (true) {
-		switch (s.$) {
-			case 'String':
-				var str = s.a;
-				return $elm$core$Maybe$Just(
-					$author$project$QStore$Core$VString(str));
-			case 'Int':
-				var n = s.a;
-				return $elm$core$Maybe$Just(
-					$author$project$QStore$Core$VInt(n));
-			case 'List':
-				if (((((s.a.b && (s.a.a.$ === 'Symbol')) && (s.a.a.a === 'file')) && s.a.b.b) && (s.a.b.a.$ === 'String')) && (!s.a.b.b.b)) {
-					var _v1 = s.a;
-					var _v2 = _v1.b;
-					var hash = _v2.a.a;
-					return $elm$core$Maybe$Just(
-						$author$project$QStore$Core$VFileHandle(
-							$author$project$QStore$Core$SHA256HashBase16(hash)));
-				} else {
-					break _v0$3;
-				}
-			default:
-				break _v0$3;
-		}
-	}
-	return A2(
-		$elm$core$Maybe$map,
-		$author$project$QStore$Core$VId,
-		$author$project$QStore$Core$idFromSexpr(s));
-};
-var $author$project$QStore$Query$answerFromSexpr = function (sexpr) {
-	if (sexpr.$ === 'List') {
-		var s = sexpr.a;
-		return A2(
-			$elm$core$Maybe$map,
-			$elm$core$Dict$fromList,
-			$author$project$QStore$Query$sequenceMaybe(
+					a.albums));
+		case 'Tracks':
+			var tracks = b.a;
+			return A4(
+				$rtfeldman$elm_css$Html$Styled$styled,
+				$rtfeldman$elm_css$Html$Styled$div,
+				_List_Nil,
+				_List_Nil,
 				A2(
 					$elm$core$List$map,
-					function (pair) {
-						if (((((pair.$ === 'List') && pair.a.b) && (pair.a.a.$ === 'Symbol')) && pair.a.b.b) && (!pair.a.b.b.b)) {
-							var _v2 = pair.a;
-							var x = _v2.a.a;
-							var _v3 = _v2.b;
-							var valS = _v3.a;
-							return A2(
-								$elm$core$Maybe$map,
-								function (val) {
-									return _Utils_Tuple2(x, val);
-								},
-								$author$project$QStore$Core$valueFromSexpr(valS));
-						} else {
-							return $elm$core$Maybe$Nothing;
-						}
-					},
-					s)));
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
-};
-var $author$project$QStore$Query$responseFromSexpr = function (s) {
-	if (s.$ === 'List') {
-		var l = s.a;
-		return $author$project$QStore$Query$sequenceMaybe(
-			A2($elm$core$List$map, $author$project$QStore$Query$answerFromSexpr, l));
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
-};
-var $author$project$QStore$Query$expectResponse = function (f) {
-	return $author$project$Sexpr$expectSexpr(
-		function (sRes) {
-			return f(
-				A2(
-					$elm$core$Result$andThen,
-					function (m) {
+					function (track) {
 						return A2(
-							$elm$core$Maybe$withDefault,
-							$elm$core$Result$Err(
-								$elm$http$Http$BadBody('Failed to parse response')),
-							A2($elm$core$Maybe$map, $elm$core$Result$Ok, m));
-					},
-					A2($elm$core$Result$map, $author$project$QStore$Query$responseFromSexpr, sRes)));
-		});
-};
-var $elm$http$Http$Request = function (a) {
-	return {$: 'Request', a: a};
-};
-var $elm$http$Http$State = F2(
-	function (reqs, subs) {
-		return {reqs: reqs, subs: subs};
-	});
-var $elm$core$Task$succeed = _Scheduler_succeed;
-var $elm$http$Http$init = $elm$core$Task$succeed(
-	A2($elm$http$Http$State, $elm$core$Dict$empty, _List_Nil));
-var $elm$core$Task$andThen = _Scheduler_andThen;
-var $elm$core$Process$kill = _Scheduler_kill;
-var $elm$core$Platform$sendToApp = _Platform_sendToApp;
-var $elm$core$Process$spawn = _Scheduler_spawn;
-var $elm$http$Http$updateReqs = F3(
-	function (router, cmds, reqs) {
-		updateReqs:
-		while (true) {
-			if (!cmds.b) {
-				return $elm$core$Task$succeed(reqs);
-			} else {
-				var cmd = cmds.a;
-				var otherCmds = cmds.b;
-				if (cmd.$ === 'Cancel') {
-					var tracker = cmd.a;
-					var _v2 = A2($elm$core$Dict$get, tracker, reqs);
-					if (_v2.$ === 'Nothing') {
-						var $temp$router = router,
-							$temp$cmds = otherCmds,
-							$temp$reqs = reqs;
-						router = $temp$router;
-						cmds = $temp$cmds;
-						reqs = $temp$reqs;
-						continue updateReqs;
-					} else {
-						var pid = _v2.a;
-						return A2(
-							$elm$core$Task$andThen,
-							function (_v3) {
-								return A3(
-									$elm$http$Http$updateReqs,
-									router,
-									otherCmds,
-									A2($elm$core$Dict$remove, tracker, reqs));
+							$author$project$Album$viewTrack,
+							{
+								playSong: $author$project$Main$PlaySong(track.song)
 							},
-							$elm$core$Process$kill(pid));
-					}
-				} else {
-					var req = cmd.a;
-					return A2(
-						$elm$core$Task$andThen,
-						function (pid) {
-							var _v4 = req.tracker;
-							if (_v4.$ === 'Nothing') {
-								return A3($elm$http$Http$updateReqs, router, otherCmds, reqs);
-							} else {
-								var tracker = _v4.a;
-								return A3(
-									$elm$http$Http$updateReqs,
-									router,
-									otherCmds,
-									A3($elm$core$Dict$insert, tracker, pid, reqs));
-							}
-						},
-						$elm$core$Process$spawn(
-							A3(
-								_Http_toTask,
-								router,
-								$elm$core$Platform$sendToApp(router),
-								req)));
-				}
-			}
-		}
-	});
-var $elm$http$Http$onEffects = F4(
-	function (router, cmds, subs, state) {
-		return A2(
-			$elm$core$Task$andThen,
-			function (reqs) {
-				return $elm$core$Task$succeed(
-					A2($elm$http$Http$State, reqs, subs));
-			},
-			A3($elm$http$Http$updateReqs, router, cmds, state.reqs));
-	});
-var $elm$core$List$maybeCons = F3(
-	function (f, mx, xs) {
-		var _v0 = f(mx);
-		if (_v0.$ === 'Just') {
-			var x = _v0.a;
-			return A2($elm$core$List$cons, x, xs);
-		} else {
-			return xs;
-		}
-	});
-var $elm$core$List$filterMap = F2(
-	function (f, xs) {
-		return A3(
-			$elm$core$List$foldr,
-			$elm$core$List$maybeCons(f),
-			_List_Nil,
-			xs);
-	});
-var $elm$http$Http$maybeSend = F4(
-	function (router, desiredTracker, progress, _v0) {
-		var actualTracker = _v0.a;
-		var toMsg = _v0.b;
-		return _Utils_eq(desiredTracker, actualTracker) ? $elm$core$Maybe$Just(
-			A2(
-				$elm$core$Platform$sendToApp,
-				router,
-				toMsg(progress))) : $elm$core$Maybe$Nothing;
-	});
-var $elm$core$Task$map2 = F3(
-	function (func, taskA, taskB) {
-		return A2(
-			$elm$core$Task$andThen,
-			function (a) {
-				return A2(
-					$elm$core$Task$andThen,
-					function (b) {
-						return $elm$core$Task$succeed(
-							A2(func, a, b));
+							track);
 					},
-					taskB);
-			},
-			taskA);
-	});
-var $elm$core$Task$sequence = function (tasks) {
-	return A3(
-		$elm$core$List$foldr,
-		$elm$core$Task$map2($elm$core$List$cons),
-		$elm$core$Task$succeed(_List_Nil),
-		tasks);
-};
-var $elm$http$Http$onSelfMsg = F3(
-	function (router, _v0, state) {
-		var tracker = _v0.a;
-		var progress = _v0.b;
-		return A2(
-			$elm$core$Task$andThen,
-			function (_v1) {
-				return $elm$core$Task$succeed(state);
-			},
-			$elm$core$Task$sequence(
-				A2(
-					$elm$core$List$filterMap,
-					A3($elm$http$Http$maybeSend, router, tracker, progress),
-					state.subs)));
-	});
-var $elm$http$Http$Cancel = function (a) {
-	return {$: 'Cancel', a: a};
-};
-var $elm$http$Http$cmdMap = F2(
-	function (func, cmd) {
-		if (cmd.$ === 'Cancel') {
-			var tracker = cmd.a;
-			return $elm$http$Http$Cancel(tracker);
-		} else {
-			var r = cmd.a;
-			return $elm$http$Http$Request(
-				{
-					allowCookiesFromOtherDomains: r.allowCookiesFromOtherDomains,
-					body: r.body,
-					expect: A2(_Http_mapExpect, func, r.expect),
-					headers: r.headers,
-					method: r.method,
-					timeout: r.timeout,
-					tracker: r.tracker,
-					url: r.url
-				});
-		}
-	});
-var $elm$http$Http$MySub = F2(
-	function (a, b) {
-		return {$: 'MySub', a: a, b: b};
-	});
-var $elm$http$Http$subMap = F2(
-	function (func, _v0) {
-		var tracker = _v0.a;
-		var toMsg = _v0.b;
-		return A2(
-			$elm$http$Http$MySub,
-			tracker,
-			A2($elm$core$Basics$composeR, toMsg, func));
-	});
-_Platform_effectManagers['Http'] = _Platform_createManager($elm$http$Http$init, $elm$http$Http$onEffects, $elm$http$Http$onSelfMsg, $elm$http$Http$cmdMap, $elm$http$Http$subMap);
-var $elm$http$Http$command = _Platform_leaf('Http');
-var $elm$http$Http$subscription = _Platform_leaf('Http');
-var $elm$http$Http$request = function (r) {
-	return $elm$http$Http$command(
-		$elm$http$Http$Request(
-			{allowCookiesFromOtherDomains: false, body: r.body, expect: r.expect, headers: r.headers, method: r.method, timeout: r.timeout, tracker: r.tracker, url: r.url}));
-};
-var $elm$http$Http$post = function (r) {
-	return $elm$http$Http$request(
-		{body: r.body, expect: r.expect, headers: _List_Nil, method: 'POST', timeout: $elm$core$Maybe$Nothing, tracker: $elm$core$Maybe$Nothing, url: r.url});
-};
-var $author$project$QStore$Core$idToSexpr = function (_v0) {
-	var i = _v0.a;
-	return $author$project$Sexpr$List(
-		_List_fromArray(
-			[
-				$author$project$Sexpr$Symbol('id'),
-				$author$project$Sexpr$Int(i)
-			]));
-};
-var $author$project$QStore$Query$queryValueToSexpr = F2(
-	function (aToSexpr, g) {
-		switch (g.$) {
-			case 'QVar':
-				var x = g.a;
-				return $author$project$Sexpr$Symbol(x);
-			case 'QWildcard':
-				return $author$project$Sexpr$Symbol('_');
-			default:
-				var a = g.a;
-				return aToSexpr(a);
-		}
-	});
-var $author$project$QStore$Core$valueToSexpr = function (v) {
-	switch (v.$) {
-		case 'VId':
-			var id = v.a;
-			return $author$project$QStore$Core$idToSexpr(id);
-		case 'VString':
-			var s = v.a;
-			return $author$project$Sexpr$String(s);
-		case 'VInt':
-			var n = v.a;
-			return $author$project$Sexpr$Int(n);
+					tracks));
 		default:
-			var hash = v.a.a;
-			return $author$project$Sexpr$List(
-				_List_fromArray(
-					[
-						$author$project$Sexpr$Symbol('file'),
-						$author$project$Sexpr$String(hash)
-					]));
+			return $rtfeldman$elm_css$Html$Styled$text('Loading...');
 	}
 };
-var $author$project$QStore$Query$queryQToSexpr = function (q) {
-	return $author$project$Sexpr$List(
-		_List_fromArray(
-			[
-				A2($author$project$QStore$Query$queryValueToSexpr, $author$project$QStore$Core$idToSexpr, q.id),
-				A2($author$project$QStore$Query$queryValueToSexpr, $author$project$Sexpr$String, q.attr),
-				A2($author$project$QStore$Query$queryValueToSexpr, $author$project$QStore$Core$valueToSexpr, q.value),
-				A2($author$project$QStore$Query$queryValueToSexpr, $author$project$QStore$Core$idToSexpr, q.tx)
-			]));
-};
-var $author$project$QStore$Query$queryToSexpr = function (l) {
-	return $author$project$Sexpr$List(
-		A2($elm$core$List$map, $author$project$QStore$Query$queryQToSexpr, l));
-};
-var $author$project$QStore$Query$runVar = function (_v0) {
-	var f = _v0.a;
-	return f(0).b;
-};
-var $elm$http$Http$stringBody = _Http_pair;
-var $elm$core$String$concat = function (strings) {
-	return A2($elm$core$String$join, '', strings);
-};
-var $elm$core$String$foldr = _String_foldr;
-var $author$project$Sexpr$escapeString = function (s) {
-	return A3(
-		$elm$core$String$foldr,
-		F2(
-			function (c, t) {
-				switch (c.valueOf()) {
-					case '\"':
-						return A2($elm$core$String$append, '\\\"', t);
-					case '\\':
-						return A2($elm$core$String$append, '\\\\', t);
-					default:
-						return A2($elm$core$String$cons, c, t);
-				}
-			}),
-		'',
-		s);
-};
-var $elm$core$List$intersperse = F2(
-	function (sep, xs) {
-		if (!xs.b) {
-			return _List_Nil;
-		} else {
-			var hd = xs.a;
-			var tl = xs.b;
-			var step = F2(
-				function (x, rest) {
-					return A2(
-						$elm$core$List$cons,
-						sep,
-						A2($elm$core$List$cons, x, rest));
-				});
-			var spersed = A3($elm$core$List$foldr, step, _List_Nil, tl);
-			return A2($elm$core$List$cons, hd, spersed);
-		}
-	});
-var $author$project$Sexpr$toString = function (sexpr) {
-	switch (sexpr.$) {
-		case 'List':
-			var l = sexpr.a;
-			return $elm$core$String$concat(
-				$elm$core$List$concat(
+var $rtfeldman$elm_css$Css$hidden = {borderStyle: $rtfeldman$elm_css$Css$Structure$Compatible, overflow: $rtfeldman$elm_css$Css$Structure$Compatible, value: 'hidden', visibility: $rtfeldman$elm_css$Css$Structure$Compatible};
+var $rtfeldman$elm_css$Css$visibility = $rtfeldman$elm_css$Css$prop1('visibility');
+var $author$project$Main$viewPlayer = function (m) {
+	if (m.$ === 'Just') {
+		var song = m.a;
+		return A4(
+			$rtfeldman$elm_css$Html$Styled$styled,
+			$rtfeldman$elm_css$Html$Styled$div,
+			_List_fromArray(
+				[
+					$rtfeldman$elm_css$Css$displayFlex,
+					$rtfeldman$elm_css$Css$flexDirection($rtfeldman$elm_css$Css$row),
+					$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center),
+					$rtfeldman$elm_css$Css$fontSize(
+					$rtfeldman$elm_css$Css$em(2))
+				]),
+			_List_Nil,
+			_List_fromArray(
+				[
+					A4(
+					$rtfeldman$elm_css$Html$Styled$styled,
+					$rtfeldman$elm_css$Html$Styled$div,
 					_List_fromArray(
 						[
-							_List_fromArray(
-							['(']),
-							A2(
-							$elm$core$List$intersperse,
-							' ',
-							A2($elm$core$List$map, $author$project$Sexpr$toString, l)),
-							_List_fromArray(
-							[')'])
-						])));
-		case 'Symbol':
-			var s = sexpr.a;
-			return s;
-		case 'String':
-			var s = sexpr.a;
-			return $elm$core$String$concat(
+							$rtfeldman$elm_css$Css$flexGrow(
+							$rtfeldman$elm_css$Css$num(1)),
+							A3(
+							$rtfeldman$elm_css$Css$border3,
+							$rtfeldman$elm_css$Css$px(2),
+							$rtfeldman$elm_css$Css$solid,
+							A3($rtfeldman$elm_css$Css$rgb, 0, 0, 0)),
+							$rtfeldman$elm_css$Css$displayFlex,
+							$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center)
+						]),
+					_List_Nil,
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Html$Styled$text('⏵')
+						])),
+					A4(
+					$rtfeldman$elm_css$Html$Styled$styled,
+					$rtfeldman$elm_css$Html$Styled$div,
+					_List_fromArray(
+						[
+							A3(
+							$rtfeldman$elm_css$Css$border3,
+							$rtfeldman$elm_css$Css$px(2),
+							$rtfeldman$elm_css$Css$solid,
+							A3($rtfeldman$elm_css$Css$rgb, 0, 0, 0)),
+							$rtfeldman$elm_css$Css$width(
+							$rtfeldman$elm_css$Css$em(20)),
+							$rtfeldman$elm_css$Css$displayFlex,
+							$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center)
+						]),
+					_List_Nil,
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Html$Styled$text(song.name)
+						])),
+					A4(
+					$rtfeldman$elm_css$Html$Styled$styled,
+					$rtfeldman$elm_css$Html$Styled$div,
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Css$flexGrow(
+							$rtfeldman$elm_css$Css$num(1)),
+							A3(
+							$rtfeldman$elm_css$Css$border3,
+							$rtfeldman$elm_css$Css$px(2),
+							$rtfeldman$elm_css$Css$solid,
+							A3($rtfeldman$elm_css$Css$rgb, 0, 0, 0)),
+							$rtfeldman$elm_css$Css$displayFlex,
+							$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center)
+						]),
+					_List_Nil,
+					_List_Nil)
+				]));
+	} else {
+		return A4(
+			$rtfeldman$elm_css$Html$Styled$styled,
+			$rtfeldman$elm_css$Html$Styled$div,
+			_List_fromArray(
+				[
+					$rtfeldman$elm_css$Css$visibility($rtfeldman$elm_css$Css$hidden)
+				]),
+			_List_Nil,
+			_List_Nil);
+	}
+};
+var $rtfeldman$elm_css$Css$VwUnits = {$: 'VwUnits'};
+var $rtfeldman$elm_css$Css$vw = A2($rtfeldman$elm_css$Css$Internal$lengthConverter, $rtfeldman$elm_css$Css$VwUnits, 'vw');
+var $author$project$Main$viewModel = function (m) {
+	return A4(
+		$rtfeldman$elm_css$Html$Styled$styled,
+		$rtfeldman$elm_css$Html$Styled$div,
+		_List_fromArray(
+			[
+				$rtfeldman$elm_css$Css$displayFlex,
+				$rtfeldman$elm_css$Css$flexDirection($rtfeldman$elm_css$Css$column),
+				$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center),
+				$rtfeldman$elm_css$Css$width(
+				$rtfeldman$elm_css$Css$vw(100)),
+				$rtfeldman$elm_css$Css$height(
+				$rtfeldman$elm_css$Css$vh(100))
+			]),
+		_List_Nil,
+		_List_fromArray(
+			[
+				A4(
+				$rtfeldman$elm_css$Html$Styled$styled,
+				$rtfeldman$elm_css$Html$Styled$div,
 				_List_fromArray(
 					[
-						'\"',
-						$author$project$Sexpr$escapeString(s),
-						'\"'
-					]));
-		case 'Bool':
-			if (sexpr.a) {
-				return '#t';
-			} else {
-				return '#f';
-			}
-		default:
-			var n = sexpr.a;
-			return $elm$core$String$fromInt(n);
-	}
+						$rtfeldman$elm_css$Css$displayFlex,
+						$rtfeldman$elm_css$Css$flexDirection($rtfeldman$elm_css$Css$row),
+						$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center),
+						$rtfeldman$elm_css$Css$flexGrow(
+						$rtfeldman$elm_css$Css$num(1))
+					]),
+				_List_Nil,
+				_List_fromArray(
+					[
+						A4(
+						$rtfeldman$elm_css$Html$Styled$styled,
+						$rtfeldman$elm_css$Html$Styled$div,
+						_List_fromArray(
+							[
+								$rtfeldman$elm_css$Css$flexGrow(
+								$rtfeldman$elm_css$Css$num(1))
+							]),
+						_List_Nil,
+						_List_Nil),
+						$author$project$Main$viewBrowser(m.browser),
+						A4(
+						$rtfeldman$elm_css$Html$Styled$styled,
+						$rtfeldman$elm_css$Html$Styled$div,
+						_List_fromArray(
+							[
+								$rtfeldman$elm_css$Css$flexGrow(
+								$rtfeldman$elm_css$Css$num(1))
+							]),
+						_List_Nil,
+						_List_Nil)
+					])),
+				$author$project$Main$viewPlayer(m.currentSong)
+			]));
 };
-var $author$project$QStore$Query$query = F2(
-	function (url, _v0) {
-		var v = _v0.a;
-		var qf = _v0.b;
-		var _v1 = qf(
-			$author$project$QStore$Query$runVar(v));
-		var q = _v1.a;
-		var proc = _v1.b;
-		return $elm$http$Http$post(
-			{
-				body: A2(
-					$elm$http$Http$stringBody,
-					'application/sexpr',
-					$author$project$Sexpr$toString(
-						$author$project$QStore$Query$queryToSexpr(q))),
-				expect: $author$project$QStore$Query$expectResponse(
-					function (respRes) {
-						if (respRes.$ === 'Ok') {
-							var resp = respRes.a;
-							return proc(resp);
-						} else {
-							var err = respRes.a;
-							return $elm$core$Result$Err(
-								$author$project$QStore$Query$NetworkError(err));
-						}
-					}),
-				url: url
-			});
-	});
-var $author$project$App$Switch$SwitchToB = function (a) {
-	return {$: 'SwitchToB', a: a};
+var $author$project$Main$view = function (m) {
+	return {
+		body: _List_fromArray(
+			[
+				$rtfeldman$elm_css$Html$Styled$toUnstyled(
+				$author$project$Main$viewModel(m))
+			]),
+		title: 'My Music'
+	};
 };
-var $author$project$App$Switch$switchToB = $author$project$App$Switch$SwitchToB;
-var $author$project$Equiv$symm = function (equiv) {
-	return {from: equiv.to, to: equiv.from};
-};
-var $author$project$Main$mainApp = $author$project$App$handle(
-	A4(
-		$author$project$App$equiv,
-		$author$project$Main$modelEquiv,
-		$author$project$Equiv$refl,
-		$author$project$Equiv$symm($author$project$Main$msgEquiv),
-		A3(
-			$author$project$App$Switch$app,
-			function (_v0) {
-				return $author$project$App$Loading$app(
-					A2(
-						$elm$core$Platform$Cmd$map,
-						function (res) {
-							if (res.$ === 'Ok') {
-								var albums = res.a;
-								return A2(
-									$author$project$Album$Albums$app,
-									A2($elm$core$Basics$composeL, $author$project$Main$Msg, $author$project$App$Switch$switchToB),
-									albums);
-							} else {
-								return A2(
-									$author$project$Album$Albums$app,
-									A2($elm$core$Basics$composeL, $author$project$Main$Msg, $author$project$App$Switch$switchToB),
-									_List_Nil);
-							}
-						},
-						A2($author$project$QStore$Query$query, 'http://localhost:2718/database/query', $author$project$Album$query)));
-			},
-			$author$project$Album$Songs$app,
-			$author$project$App$Switch$StartA(_Utils_Tuple0))));
-var $author$project$App$Flex$row = $author$project$App$Flex$flex($rtfeldman$elm_css$Css$row);
-var $author$project$Main$app = $author$project$App$Flex$row(
-	A2(
-		$author$project$App$Product$app,
-		A2($author$project$App$Product$app, $author$project$App$Flex$filler, $author$project$Main$mainApp),
-		$author$project$App$Flex$filler));
-var $elm$browser$Browser$External = function (a) {
-	return {$: 'External', a: a};
-};
-var $elm$browser$Browser$Internal = function (a) {
-	return {$: 'Internal', a: a};
-};
-var $elm$browser$Browser$Dom$NotFound = function (a) {
-	return {$: 'NotFound', a: a};
-};
-var $elm$url$Url$Http = {$: 'Http'};
-var $elm$url$Url$Https = {$: 'Https'};
-var $elm$url$Url$Url = F6(
-	function (protocol, host, port_, path, query, fragment) {
-		return {fragment: fragment, host: host, path: path, port_: port_, protocol: protocol, query: query};
-	});
-var $elm$core$String$contains = _String_contains;
-var $elm$core$String$length = _String_length;
-var $elm$core$String$dropLeft = F2(
-	function (n, string) {
-		return (n < 1) ? string : A3(
-			$elm$core$String$slice,
-			n,
-			$elm$core$String$length(string),
-			string);
-	});
-var $elm$core$String$indexes = _String_indexes;
-var $elm$core$String$left = F2(
-	function (n, string) {
-		return (n < 1) ? '' : A3($elm$core$String$slice, 0, n, string);
-	});
-var $elm$core$String$toInt = _String_toInt;
-var $elm$url$Url$chompBeforePath = F5(
-	function (protocol, path, params, frag, str) {
-		if ($elm$core$String$isEmpty(str) || A2($elm$core$String$contains, '@', str)) {
-			return $elm$core$Maybe$Nothing;
-		} else {
-			var _v0 = A2($elm$core$String$indexes, ':', str);
-			if (!_v0.b) {
-				return $elm$core$Maybe$Just(
-					A6($elm$url$Url$Url, protocol, str, $elm$core$Maybe$Nothing, path, params, frag));
-			} else {
-				if (!_v0.b.b) {
-					var i = _v0.a;
-					var _v1 = $elm$core$String$toInt(
-						A2($elm$core$String$dropLeft, i + 1, str));
-					if (_v1.$ === 'Nothing') {
-						return $elm$core$Maybe$Nothing;
-					} else {
-						var port_ = _v1;
-						return $elm$core$Maybe$Just(
-							A6(
-								$elm$url$Url$Url,
-								protocol,
-								A2($elm$core$String$left, i, str),
-								port_,
-								path,
-								params,
-								frag));
-					}
-				} else {
-					return $elm$core$Maybe$Nothing;
-				}
-			}
-		}
-	});
-var $elm$url$Url$chompBeforeQuery = F4(
-	function (protocol, params, frag, str) {
-		if ($elm$core$String$isEmpty(str)) {
-			return $elm$core$Maybe$Nothing;
-		} else {
-			var _v0 = A2($elm$core$String$indexes, '/', str);
-			if (!_v0.b) {
-				return A5($elm$url$Url$chompBeforePath, protocol, '/', params, frag, str);
-			} else {
-				var i = _v0.a;
-				return A5(
-					$elm$url$Url$chompBeforePath,
-					protocol,
-					A2($elm$core$String$dropLeft, i, str),
-					params,
-					frag,
-					A2($elm$core$String$left, i, str));
-			}
-		}
-	});
-var $elm$url$Url$chompBeforeFragment = F3(
-	function (protocol, frag, str) {
-		if ($elm$core$String$isEmpty(str)) {
-			return $elm$core$Maybe$Nothing;
-		} else {
-			var _v0 = A2($elm$core$String$indexes, '?', str);
-			if (!_v0.b) {
-				return A4($elm$url$Url$chompBeforeQuery, protocol, $elm$core$Maybe$Nothing, frag, str);
-			} else {
-				var i = _v0.a;
-				return A4(
-					$elm$url$Url$chompBeforeQuery,
-					protocol,
-					$elm$core$Maybe$Just(
-						A2($elm$core$String$dropLeft, i + 1, str)),
-					frag,
-					A2($elm$core$String$left, i, str));
-			}
-		}
-	});
-var $elm$url$Url$chompAfterProtocol = F2(
-	function (protocol, str) {
-		if ($elm$core$String$isEmpty(str)) {
-			return $elm$core$Maybe$Nothing;
-		} else {
-			var _v0 = A2($elm$core$String$indexes, '#', str);
-			if (!_v0.b) {
-				return A3($elm$url$Url$chompBeforeFragment, protocol, $elm$core$Maybe$Nothing, str);
-			} else {
-				var i = _v0.a;
-				return A3(
-					$elm$url$Url$chompBeforeFragment,
-					protocol,
-					$elm$core$Maybe$Just(
-						A2($elm$core$String$dropLeft, i + 1, str)),
-					A2($elm$core$String$left, i, str));
-			}
-		}
-	});
-var $elm$core$String$startsWith = _String_startsWith;
-var $elm$url$Url$fromString = function (str) {
-	return A2($elm$core$String$startsWith, 'http://', str) ? A2(
-		$elm$url$Url$chompAfterProtocol,
-		$elm$url$Url$Http,
-		A2($elm$core$String$dropLeft, 7, str)) : (A2($elm$core$String$startsWith, 'https://', str) ? A2(
-		$elm$url$Url$chompAfterProtocol,
-		$elm$url$Url$Https,
-		A2($elm$core$String$dropLeft, 8, str)) : $elm$core$Maybe$Nothing);
-};
-var $elm$core$Task$Perform = function (a) {
-	return {$: 'Perform', a: a};
-};
-var $elm$core$Task$init = $elm$core$Task$succeed(_Utils_Tuple0);
-var $elm$core$Task$map = F2(
-	function (func, taskA) {
-		return A2(
-			$elm$core$Task$andThen,
-			function (a) {
-				return $elm$core$Task$succeed(
-					func(a));
-			},
-			taskA);
-	});
-var $elm$core$Task$spawnCmd = F2(
-	function (router, _v0) {
-		var task = _v0.a;
-		return _Scheduler_spawn(
-			A2(
-				$elm$core$Task$andThen,
-				$elm$core$Platform$sendToApp(router),
-				task));
-	});
-var $elm$core$Task$onEffects = F3(
-	function (router, commands, state) {
-		return A2(
-			$elm$core$Task$map,
-			function (_v0) {
-				return _Utils_Tuple0;
-			},
-			$elm$core$Task$sequence(
-				A2(
-					$elm$core$List$map,
-					$elm$core$Task$spawnCmd(router),
-					commands)));
-	});
-var $elm$core$Task$onSelfMsg = F3(
-	function (_v0, _v1, _v2) {
-		return $elm$core$Task$succeed(_Utils_Tuple0);
-	});
-var $elm$core$Task$cmdMap = F2(
-	function (tagger, _v0) {
-		var task = _v0.a;
-		return $elm$core$Task$Perform(
-			A2($elm$core$Task$map, tagger, task));
-	});
-_Platform_effectManagers['Task'] = _Platform_createManager($elm$core$Task$init, $elm$core$Task$onEffects, $elm$core$Task$onSelfMsg, $elm$core$Task$cmdMap);
-var $elm$core$Task$command = _Platform_leaf('Task');
-var $elm$core$Task$perform = F2(
-	function (toMessage, task) {
-		return $elm$core$Task$command(
-			$elm$core$Task$Perform(
-				A2($elm$core$Task$map, toMessage, task)));
-	});
-var $elm$browser$Browser$document = _Browser_document;
-var $elm$core$Platform$Sub$batch = _Platform_batch;
-var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
-var $rtfeldman$elm_css$VirtualDom$Styled$UnscopedStyles = function (a) {
-	return {$: 'UnscopedStyles', a: a};
-};
-var $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles = F2(
-	function (_v0, styles) {
-		var isCssStyles = _v0.b;
-		var cssTemplate = _v0.c;
-		if (isCssStyles) {
-			var _v1 = A2($elm$core$Dict$get, cssTemplate, styles);
-			if (_v1.$ === 'Just') {
-				return styles;
-			} else {
-				return A3(
-					$elm$core$Dict$insert,
-					cssTemplate,
-					$rtfeldman$elm_css$Hash$fromString(cssTemplate),
-					styles);
-			}
-		} else {
-			return styles;
-		}
-	});
-var $elm$virtual_dom$VirtualDom$property = F2(
-	function (key, value) {
-		return A2(
-			_VirtualDom_property,
-			_VirtualDom_noInnerHtmlOrFormAction(key),
-			_VirtualDom_noJavaScriptOrHtmlJson(value));
-	});
-var $elm$json$Json$Encode$string = _Json_wrap;
-var $rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttribute = F2(
-	function (styles, _v0) {
-		var val = _v0.a;
-		var isCssStyles = _v0.b;
-		var cssTemplate = _v0.c;
-		if (isCssStyles) {
-			var _v1 = A2($elm$core$Dict$get, cssTemplate, styles);
-			if (_v1.$ === 'Just') {
-				var classname = _v1.a;
-				return A2(
-					$elm$virtual_dom$VirtualDom$property,
-					'className',
-					$elm$json$Json$Encode$string(classname));
-			} else {
-				return A2(
-					$elm$virtual_dom$VirtualDom$property,
-					'className',
-					$elm$json$Json$Encode$string('_unstyled'));
-			}
-		} else {
-			return val;
-		}
-	});
-var $rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttributeNS = F2(
-	function (styles, _v0) {
-		var val = _v0.a;
-		var isCssStyles = _v0.b;
-		var cssTemplate = _v0.c;
-		if (isCssStyles) {
-			var _v1 = A2($elm$core$Dict$get, cssTemplate, styles);
-			if (_v1.$ === 'Just') {
-				var classname = _v1.a;
-				return A2($elm$virtual_dom$VirtualDom$attribute, 'class', classname);
-			} else {
-				return A2($elm$virtual_dom$VirtualDom$attribute, 'class', '_unstyled');
-			}
-		} else {
-			return val;
-		}
-	});
-var $elm$virtual_dom$VirtualDom$keyedNode = function (tag) {
-	return _VirtualDom_keyedNode(
-		_VirtualDom_noScript(tag));
-};
-var $elm$virtual_dom$VirtualDom$keyedNodeNS = F2(
-	function (namespace, tag) {
-		return A2(
-			_VirtualDom_keyedNodeNS,
-			namespace,
-			_VirtualDom_noScript(tag));
-	});
-var $elm$virtual_dom$VirtualDom$node = function (tag) {
-	return _VirtualDom_node(
-		_VirtualDom_noScript(tag));
-};
-var $elm$virtual_dom$VirtualDom$nodeNS = F2(
-	function (namespace, tag) {
-		return A2(
-			_VirtualDom_nodeNS,
-			namespace,
-			_VirtualDom_noScript(tag));
-	});
-var $rtfeldman$elm_css$VirtualDom$Styled$accumulateKeyedStyledHtml = F2(
-	function (_v6, _v7) {
-		var key = _v6.a;
-		var html = _v6.b;
-		var pairs = _v7.a;
-		var styles = _v7.b;
-		switch (html.$) {
-			case 'Unstyled':
-				var vdom = html.a;
-				return _Utils_Tuple2(
-					A2(
-						$elm$core$List$cons,
-						_Utils_Tuple2(key, vdom),
-						pairs),
-					styles);
-			case 'Node':
-				var elemType = html.a;
-				var properties = html.b;
-				var children = html.c;
-				var combinedStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, styles, properties);
-				var _v9 = A3(
-					$elm$core$List$foldl,
-					$rtfeldman$elm_css$VirtualDom$Styled$accumulateStyledHtml,
-					_Utils_Tuple2(_List_Nil, combinedStyles),
-					children);
-				var childNodes = _v9.a;
-				var finalStyles = _v9.b;
-				var vdom = A3(
-					$elm$virtual_dom$VirtualDom$node,
-					elemType,
-					A2(
-						$elm$core$List$map,
-						$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttribute(finalStyles),
-						properties),
-					$elm$core$List$reverse(childNodes));
-				return _Utils_Tuple2(
-					A2(
-						$elm$core$List$cons,
-						_Utils_Tuple2(key, vdom),
-						pairs),
-					finalStyles);
-			case 'NodeNS':
-				var ns = html.a;
-				var elemType = html.b;
-				var properties = html.c;
-				var children = html.d;
-				var combinedStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, styles, properties);
-				var _v10 = A3(
-					$elm$core$List$foldl,
-					$rtfeldman$elm_css$VirtualDom$Styled$accumulateStyledHtml,
-					_Utils_Tuple2(_List_Nil, combinedStyles),
-					children);
-				var childNodes = _v10.a;
-				var finalStyles = _v10.b;
-				var vdom = A4(
-					$elm$virtual_dom$VirtualDom$nodeNS,
-					ns,
-					elemType,
-					A2(
-						$elm$core$List$map,
-						$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttribute(finalStyles),
-						properties),
-					$elm$core$List$reverse(childNodes));
-				return _Utils_Tuple2(
-					A2(
-						$elm$core$List$cons,
-						_Utils_Tuple2(key, vdom),
-						pairs),
-					finalStyles);
-			case 'KeyedNode':
-				var elemType = html.a;
-				var properties = html.b;
-				var children = html.c;
-				var combinedStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, styles, properties);
-				var _v11 = A3(
-					$elm$core$List$foldl,
-					$rtfeldman$elm_css$VirtualDom$Styled$accumulateKeyedStyledHtml,
-					_Utils_Tuple2(_List_Nil, combinedStyles),
-					children);
-				var childNodes = _v11.a;
-				var finalStyles = _v11.b;
-				var vdom = A3(
-					$elm$virtual_dom$VirtualDom$keyedNode,
-					elemType,
-					A2(
-						$elm$core$List$map,
-						$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttribute(finalStyles),
-						properties),
-					$elm$core$List$reverse(childNodes));
-				return _Utils_Tuple2(
-					A2(
-						$elm$core$List$cons,
-						_Utils_Tuple2(key, vdom),
-						pairs),
-					finalStyles);
-			default:
-				var ns = html.a;
-				var elemType = html.b;
-				var properties = html.c;
-				var children = html.d;
-				var combinedStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, styles, properties);
-				var _v12 = A3(
-					$elm$core$List$foldl,
-					$rtfeldman$elm_css$VirtualDom$Styled$accumulateKeyedStyledHtml,
-					_Utils_Tuple2(_List_Nil, combinedStyles),
-					children);
-				var childNodes = _v12.a;
-				var finalStyles = _v12.b;
-				var vdom = A4(
-					$elm$virtual_dom$VirtualDom$keyedNodeNS,
-					ns,
-					elemType,
-					A2(
-						$elm$core$List$map,
-						$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttribute(finalStyles),
-						properties),
-					$elm$core$List$reverse(childNodes));
-				return _Utils_Tuple2(
-					A2(
-						$elm$core$List$cons,
-						_Utils_Tuple2(key, vdom),
-						pairs),
-					finalStyles);
-		}
-	});
-var $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyledHtml = F2(
-	function (html, _v0) {
-		var nodes = _v0.a;
-		var styles = _v0.b;
-		switch (html.$) {
-			case 'Unstyled':
-				var vdomNode = html.a;
-				return _Utils_Tuple2(
-					A2($elm$core$List$cons, vdomNode, nodes),
-					styles);
-			case 'Node':
-				var elemType = html.a;
-				var properties = html.b;
-				var children = html.c;
-				var combinedStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, styles, properties);
-				var _v2 = A3(
-					$elm$core$List$foldl,
-					$rtfeldman$elm_css$VirtualDom$Styled$accumulateStyledHtml,
-					_Utils_Tuple2(_List_Nil, combinedStyles),
-					children);
-				var childNodes = _v2.a;
-				var finalStyles = _v2.b;
-				var vdomNode = A3(
-					$elm$virtual_dom$VirtualDom$node,
-					elemType,
-					A2(
-						$elm$core$List$map,
-						$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttribute(finalStyles),
-						properties),
-					$elm$core$List$reverse(childNodes));
-				return _Utils_Tuple2(
-					A2($elm$core$List$cons, vdomNode, nodes),
-					finalStyles);
-			case 'NodeNS':
-				var ns = html.a;
-				var elemType = html.b;
-				var properties = html.c;
-				var children = html.d;
-				var combinedStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, styles, properties);
-				var _v3 = A3(
-					$elm$core$List$foldl,
-					$rtfeldman$elm_css$VirtualDom$Styled$accumulateStyledHtml,
-					_Utils_Tuple2(_List_Nil, combinedStyles),
-					children);
-				var childNodes = _v3.a;
-				var finalStyles = _v3.b;
-				var vdomNode = A4(
-					$elm$virtual_dom$VirtualDom$nodeNS,
-					ns,
-					elemType,
-					A2(
-						$elm$core$List$map,
-						$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttributeNS(finalStyles),
-						properties),
-					$elm$core$List$reverse(childNodes));
-				return _Utils_Tuple2(
-					A2($elm$core$List$cons, vdomNode, nodes),
-					finalStyles);
-			case 'KeyedNode':
-				var elemType = html.a;
-				var properties = html.b;
-				var children = html.c;
-				var combinedStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, styles, properties);
-				var _v4 = A3(
-					$elm$core$List$foldl,
-					$rtfeldman$elm_css$VirtualDom$Styled$accumulateKeyedStyledHtml,
-					_Utils_Tuple2(_List_Nil, combinedStyles),
-					children);
-				var childNodes = _v4.a;
-				var finalStyles = _v4.b;
-				var vdomNode = A3(
-					$elm$virtual_dom$VirtualDom$keyedNode,
-					elemType,
-					A2(
-						$elm$core$List$map,
-						$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttribute(finalStyles),
-						properties),
-					$elm$core$List$reverse(childNodes));
-				return _Utils_Tuple2(
-					A2($elm$core$List$cons, vdomNode, nodes),
-					finalStyles);
-			default:
-				var ns = html.a;
-				var elemType = html.b;
-				var properties = html.c;
-				var children = html.d;
-				var combinedStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, styles, properties);
-				var _v5 = A3(
-					$elm$core$List$foldl,
-					$rtfeldman$elm_css$VirtualDom$Styled$accumulateKeyedStyledHtml,
-					_Utils_Tuple2(_List_Nil, combinedStyles),
-					children);
-				var childNodes = _v5.a;
-				var finalStyles = _v5.b;
-				var vdomNode = A4(
-					$elm$virtual_dom$VirtualDom$keyedNodeNS,
-					ns,
-					elemType,
-					A2(
-						$elm$core$List$map,
-						$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttributeNS(finalStyles),
-						properties),
-					$elm$core$List$reverse(childNodes));
-				return _Utils_Tuple2(
-					A2($elm$core$List$cons, vdomNode, nodes),
-					finalStyles);
-		}
-	});
-var $elm$core$Dict$foldl = F3(
-	function (func, acc, dict) {
-		foldl:
-		while (true) {
-			if (dict.$ === 'RBEmpty_elm_builtin') {
-				return acc;
-			} else {
-				var key = dict.b;
-				var value = dict.c;
-				var left = dict.d;
-				var right = dict.e;
-				var $temp$func = func,
-					$temp$acc = A3(
-					func,
-					key,
-					value,
-					A3($elm$core$Dict$foldl, func, acc, left)),
-					$temp$dict = right;
-				func = $temp$func;
-				acc = $temp$acc;
-				dict = $temp$dict;
-				continue foldl;
-			}
-		}
-	});
-var $elm$core$String$replace = F3(
-	function (before, after, string) {
-		return A2(
-			$elm$core$String$join,
-			after,
-			A2($elm$core$String$split, before, string));
-	});
-var $rtfeldman$elm_css$VirtualDom$Styled$styleToDeclaration = F3(
-	function (template, classname, declaration) {
-		return declaration + ('\n' + A3($elm$core$String$replace, $rtfeldman$elm_css$VirtualDom$Styled$classnameStandin, classname, template));
-	});
-var $rtfeldman$elm_css$VirtualDom$Styled$toDeclaration = function (dict) {
-	return A3($elm$core$Dict$foldl, $rtfeldman$elm_css$VirtualDom$Styled$styleToDeclaration, '', dict);
-};
-var $rtfeldman$elm_css$VirtualDom$Styled$toScopedDeclaration = F2(
-	function (scopingPrefix, dict) {
-		return A3(
-			$elm$core$Dict$foldl,
-			F3(
-				function (template, classname, declaration) {
-					return declaration + ('\n' + A3($elm$core$String$replace, '.' + $rtfeldman$elm_css$VirtualDom$Styled$classnameStandin, '#' + (scopingPrefix + ('.' + classname)), template));
-				}),
-			'',
-			dict);
-	});
-var $rtfeldman$elm_css$VirtualDom$Styled$toStyleNode = F2(
-	function (maybeNonce, accumulatedStyles) {
-		var cssText = function () {
-			if (accumulatedStyles.$ === 'UnscopedStyles') {
-				var allStyles = accumulatedStyles.a;
-				return $rtfeldman$elm_css$VirtualDom$Styled$toDeclaration(allStyles);
-			} else {
-				var scope = accumulatedStyles.a.a;
-				var rootStyles = accumulatedStyles.b;
-				var descendantStyles = accumulatedStyles.c;
-				return A2($rtfeldman$elm_css$VirtualDom$Styled$toScopedDeclaration, scope, rootStyles) + ('\n' + A2($rtfeldman$elm_css$VirtualDom$Styled$toScopedDeclaration, scope + ' ', descendantStyles));
-			}
-		}();
-		return A3(
-			$elm$virtual_dom$VirtualDom$node,
-			'span',
-			_List_fromArray(
-				[
-					A2($elm$virtual_dom$VirtualDom$attribute, 'style', 'display: none;'),
-					A2($elm$virtual_dom$VirtualDom$attribute, 'class', 'elm-css-style-wrapper')
-				]),
-			_List_fromArray(
-				[
-					A3(
-					$elm$virtual_dom$VirtualDom$node,
-					'style',
-					function () {
-						if (maybeNonce.$ === 'Just') {
-							var nonce = maybeNonce.a.a;
-							return _List_fromArray(
-								[
-									A2($elm$virtual_dom$VirtualDom$attribute, 'nonce', nonce)
-								]);
-						} else {
-							return _List_Nil;
-						}
-					}(),
-					$elm$core$List$singleton(
-						$elm$virtual_dom$VirtualDom$text(cssText)))
-				]));
-	});
-var $rtfeldman$elm_css$VirtualDom$Styled$unstyle = F4(
-	function (maybeNonce, elemType, properties, children) {
-		var initialStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, $elm$core$Dict$empty, properties);
-		var _v0 = A3(
-			$elm$core$List$foldl,
-			$rtfeldman$elm_css$VirtualDom$Styled$accumulateStyledHtml,
-			_Utils_Tuple2(_List_Nil, initialStyles),
-			children);
-		var childNodes = _v0.a;
-		var styles = _v0.b;
-		var styleNode = A2(
-			$rtfeldman$elm_css$VirtualDom$Styled$toStyleNode,
-			maybeNonce,
-			$rtfeldman$elm_css$VirtualDom$Styled$UnscopedStyles(styles));
-		var unstyledProperties = A2(
-			$elm$core$List$map,
-			$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttribute(styles),
-			properties);
-		return A3(
-			$elm$virtual_dom$VirtualDom$node,
-			elemType,
-			unstyledProperties,
-			A2(
-				$elm$core$List$cons,
-				styleNode,
-				$elm$core$List$reverse(childNodes)));
-	});
-var $rtfeldman$elm_css$VirtualDom$Styled$containsKey = F2(
-	function (key, pairs) {
-		containsKey:
-		while (true) {
-			if (!pairs.b) {
-				return false;
-			} else {
-				var _v1 = pairs.a;
-				var str = _v1.a;
-				var rest = pairs.b;
-				if (_Utils_eq(key, str)) {
-					return true;
-				} else {
-					var $temp$key = key,
-						$temp$pairs = rest;
-					key = $temp$key;
-					pairs = $temp$pairs;
-					continue containsKey;
-				}
-			}
-		}
-	});
-var $rtfeldman$elm_css$VirtualDom$Styled$getUnusedKey = F2(
-	function (_default, pairs) {
-		getUnusedKey:
-		while (true) {
-			if (!pairs.b) {
-				return _default;
-			} else {
-				var _v1 = pairs.a;
-				var firstKey = _v1.a;
-				var rest = pairs.b;
-				var newKey = '_' + firstKey;
-				if (A2($rtfeldman$elm_css$VirtualDom$Styled$containsKey, newKey, rest)) {
-					var $temp$default = newKey,
-						$temp$pairs = rest;
-					_default = $temp$default;
-					pairs = $temp$pairs;
-					continue getUnusedKey;
-				} else {
-					return newKey;
-				}
-			}
-		}
-	});
-var $rtfeldman$elm_css$VirtualDom$Styled$toKeyedStyleNode = F3(
-	function (maybeNonce, accumulatedStyles, keyedChildNodes) {
-		var styleNodeKey = A2($rtfeldman$elm_css$VirtualDom$Styled$getUnusedKey, '_', keyedChildNodes);
-		var finalNode = A2($rtfeldman$elm_css$VirtualDom$Styled$toStyleNode, maybeNonce, accumulatedStyles);
-		return _Utils_Tuple2(styleNodeKey, finalNode);
-	});
-var $rtfeldman$elm_css$VirtualDom$Styled$unstyleKeyed = F4(
-	function (maybeNonce, elemType, properties, keyedChildren) {
-		var initialStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, $elm$core$Dict$empty, properties);
-		var _v0 = A3(
-			$elm$core$List$foldl,
-			$rtfeldman$elm_css$VirtualDom$Styled$accumulateKeyedStyledHtml,
-			_Utils_Tuple2(_List_Nil, initialStyles),
-			keyedChildren);
-		var keyedChildNodes = _v0.a;
-		var styles = _v0.b;
-		var keyedStyleNode = A3(
-			$rtfeldman$elm_css$VirtualDom$Styled$toKeyedStyleNode,
-			maybeNonce,
-			$rtfeldman$elm_css$VirtualDom$Styled$UnscopedStyles(styles),
-			keyedChildNodes);
-		var unstyledProperties = A2(
-			$elm$core$List$map,
-			$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttribute(styles),
-			properties);
-		return A3(
-			$elm$virtual_dom$VirtualDom$keyedNode,
-			elemType,
-			unstyledProperties,
-			A2(
-				$elm$core$List$cons,
-				keyedStyleNode,
-				$elm$core$List$reverse(keyedChildNodes)));
-	});
-var $rtfeldman$elm_css$VirtualDom$Styled$unstyleKeyedNS = F5(
-	function (maybeNonce, ns, elemType, properties, keyedChildren) {
-		var initialStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, $elm$core$Dict$empty, properties);
-		var _v0 = A3(
-			$elm$core$List$foldl,
-			$rtfeldman$elm_css$VirtualDom$Styled$accumulateKeyedStyledHtml,
-			_Utils_Tuple2(_List_Nil, initialStyles),
-			keyedChildren);
-		var keyedChildNodes = _v0.a;
-		var styles = _v0.b;
-		var keyedStyleNode = A3(
-			$rtfeldman$elm_css$VirtualDom$Styled$toKeyedStyleNode,
-			maybeNonce,
-			$rtfeldman$elm_css$VirtualDom$Styled$UnscopedStyles(styles),
-			keyedChildNodes);
-		var unstyledProperties = A2(
-			$elm$core$List$map,
-			$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttributeNS(styles),
-			properties);
-		return A4(
-			$elm$virtual_dom$VirtualDom$keyedNodeNS,
-			ns,
-			elemType,
-			unstyledProperties,
-			A2(
-				$elm$core$List$cons,
-				keyedStyleNode,
-				$elm$core$List$reverse(keyedChildNodes)));
-	});
-var $rtfeldman$elm_css$VirtualDom$Styled$unstyleNS = F5(
-	function (maybeNonce, ns, elemType, properties, children) {
-		var initialStyles = A3($elm$core$List$foldl, $rtfeldman$elm_css$VirtualDom$Styled$accumulateStyles, $elm$core$Dict$empty, properties);
-		var _v0 = A3(
-			$elm$core$List$foldl,
-			$rtfeldman$elm_css$VirtualDom$Styled$accumulateStyledHtml,
-			_Utils_Tuple2(_List_Nil, initialStyles),
-			children);
-		var childNodes = _v0.a;
-		var styles = _v0.b;
-		var styleNode = A2(
-			$rtfeldman$elm_css$VirtualDom$Styled$toStyleNode,
-			maybeNonce,
-			$rtfeldman$elm_css$VirtualDom$Styled$UnscopedStyles(styles));
-		var unstyledProperties = A2(
-			$elm$core$List$map,
-			$rtfeldman$elm_css$VirtualDom$Styled$extractUnstyledAttributeNS(styles),
-			properties);
-		return A4(
-			$elm$virtual_dom$VirtualDom$nodeNS,
-			ns,
-			elemType,
-			unstyledProperties,
-			A2(
-				$elm$core$List$cons,
-				styleNode,
-				$elm$core$List$reverse(childNodes)));
-	});
-var $rtfeldman$elm_css$VirtualDom$Styled$toUnstyled = function (vdom) {
-	switch (vdom.$) {
-		case 'Unstyled':
-			var plainNode = vdom.a;
-			return plainNode;
-		case 'Node':
-			var elemType = vdom.a;
-			var properties = vdom.b;
-			var children = vdom.c;
-			return A4($rtfeldman$elm_css$VirtualDom$Styled$unstyle, $elm$core$Maybe$Nothing, elemType, properties, children);
-		case 'NodeNS':
-			var ns = vdom.a;
-			var elemType = vdom.b;
-			var properties = vdom.c;
-			var children = vdom.d;
-			return A5($rtfeldman$elm_css$VirtualDom$Styled$unstyleNS, $elm$core$Maybe$Nothing, ns, elemType, properties, children);
-		case 'KeyedNode':
-			var elemType = vdom.a;
-			var properties = vdom.b;
-			var children = vdom.c;
-			return A4($rtfeldman$elm_css$VirtualDom$Styled$unstyleKeyed, $elm$core$Maybe$Nothing, elemType, properties, children);
-		default:
-			var ns = vdom.a;
-			var elemType = vdom.b;
-			var properties = vdom.c;
-			var children = vdom.d;
-			return A5($rtfeldman$elm_css$VirtualDom$Styled$unstyleKeyedNS, $elm$core$Maybe$Nothing, ns, elemType, properties, children);
-	}
-};
-var $rtfeldman$elm_css$Html$Styled$toUnstyled = $rtfeldman$elm_css$VirtualDom$Styled$toUnstyled;
-var $author$project$App$run = F2(
-	function (title, app) {
-		return $elm$browser$Browser$document(
-			{
-				init: function (_v0) {
-					return A2(
-						$elm$core$Tuple$mapSecond,
-						$elm$core$Platform$Cmd$map($author$project$App$consolidate),
-						app.init);
-				},
-				subscriptions: function (_v1) {
-					return $elm$core$Platform$Sub$none;
-				},
-				update: F2(
-					function (msg, model) {
-						return A2(
-							$elm$core$Tuple$mapSecond,
-							$elm$core$Platform$Cmd$map($author$project$App$consolidate),
-							A2(app.update, msg, model));
-					}),
-				view: function (model) {
-					return {
-						body: A2(
-							$elm$core$List$map,
-							A2(
-								$elm$core$Basics$composeL,
-								$rtfeldman$elm_css$Html$Styled$toUnstyled,
-								$rtfeldman$elm_css$Html$Styled$map($author$project$App$consolidate)),
-							app.view(model)),
-						title: title
-					};
-				}
-			});
-	});
-var $author$project$Main$main = A2($author$project$App$run, 'My Music', $author$project$Main$app);
+var $author$project$Main$main = $elm$browser$Browser$document(
+	{init: $author$project$Main$init, subscriptions: $author$project$Main$subscriptions, update: $author$project$Main$update, view: $author$project$Main$view});
 _Platform_export({'Main':{'init':$author$project$Main$main(
 	$elm$json$Json$Decode$succeed(_Utils_Tuple0))(0)}});}(this));

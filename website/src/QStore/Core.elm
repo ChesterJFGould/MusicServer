@@ -1,4 +1,4 @@
-module QStore.Core exposing (Id, FileHandle, Value(..), idToSexpr, idFromSexpr, valueToSexpr, valueFromSexpr, fileHandleToPath)
+module QStore.Core exposing (Id, FileHandle, Value(..), idToSexpr, idFromSexpr, valueToSexpr, valueFromSexpr, fileHandleToPath, idEq)
 
 import Sexpr as S
 import Sexpr exposing (Sexpr)
@@ -12,6 +12,9 @@ type Value
   | VString String
   | VInt Int
   | VFileHandle FileHandle
+
+idEq : Id -> Id -> Bool
+idEq (Id a) (Id b) = a == b
 
 idToSexpr : Id -> Sexpr
 idToSexpr (Id i) = S.List [S.Symbol "id", S.Int i]
