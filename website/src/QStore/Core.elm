@@ -1,4 +1,4 @@
-module QStore.Core exposing (Id, FileHandle, Value(..), idToSexpr, idFromSexpr, valueToSexpr, valueFromSexpr, fileHandleToPath, idEq)
+module QStore.Core exposing (Id, FileHandle, Value(..), idToSexpr, idFromSexpr, valueToSexpr, valueFromSexpr, fileHandleToPath, idEq, idToInt, idFromInt)
 
 import Sexpr as S
 import Sexpr exposing (Sexpr)
@@ -43,3 +43,9 @@ valueFromSexpr s =
 
 fileHandleToPath : FileHandle -> String
 fileHandleToPath (SHA256HashBase16 hash) = hash
+
+idToInt : Id -> Int
+idToInt (Id x) = x
+
+idFromInt : Int -> Id
+idFromInt = Id

@@ -11,8 +11,7 @@ main =
     3141
     (\req resp ->
       case (Wai.requestMethod req, Wai.pathInfo req) of
-        ("GET", ("music" : path)) -> resp (Wai.responseFile HTTP.Status.status200 [] (Text.unpack (Text.intercalate "/" ("music" : path))) Nothing)
         ("GET", ["main.js"]) -> resp (Wai.responseFile HTTP.Status.status200 [] "website/main.js" Nothing)
-        ("GET", []) -> resp (Wai.responseFile HTTP.Status.status200 [] "website/index.html" Nothing)
+        ("GET", _) -> resp (Wai.responseFile HTTP.Status.status200 [] "website/index.html" Nothing)
         _ -> resp (Wai.responseLBS HTTP.Status.status404 [] "404 Not found")
     )

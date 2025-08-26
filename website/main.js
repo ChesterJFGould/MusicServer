@@ -4372,6 +4372,23 @@ function _Browser_load(url)
 }
 
 
+function _Url_percentEncode(string)
+{
+	return encodeURIComponent(string);
+}
+
+function _Url_percentDecode(string)
+{
+	try
+	{
+		return $elm$core$Maybe$Just(decodeURIComponent(string));
+	}
+	catch (e)
+	{
+		return $elm$core$Maybe$Nothing;
+	}
+}
+
 
 // SEND REQUEST
 
@@ -4712,6 +4729,15 @@ var _Bitwise_shiftRightZfBy = F2(function(offset, a)
 {
 	return a >>> offset;
 });
+var $author$project$Main$UrlChange = function (a) {
+	return {$: 'UrlChange', a: a};
+};
+var $author$project$UrlPersistence$UrlChange = function (a) {
+	return {$: 'UrlChange', a: a};
+};
+var $author$project$UrlPersistence$UrlRequest = function (a) {
+	return {$: 'UrlRequest', a: a};
+};
 var $elm$core$Basics$EQ = {$: 'EQ'};
 var $elm$core$Basics$GT = {$: 'GT'};
 var $elm$core$Basics$LT = {$: 'LT'};
@@ -5500,339 +5526,258 @@ var $elm$core$Task$perform = F2(
 			$elm$core$Task$Perform(
 				A2($elm$core$Task$map, toMessage, task)));
 	});
-var $elm$browser$Browser$document = _Browser_document;
+var $elm$browser$Browser$application = _Browser_application;
+var $author$project$UrlPersistence$ForApp = function (a) {
+	return {$: 'ForApp', a: a};
+};
+var $author$project$UrlPersistence$Model = function (a) {
+	return {$: 'Model', a: a};
+};
+var $elm$core$Platform$Cmd$map = _Platform_map;
+var $author$project$UrlPersistence$init = F4(
+	function (i, flags, url, key) {
+		var _v0 = A2(i, flags, url);
+		var appModel = _v0.a;
+		var cmd = _v0.b;
+		return _Utils_Tuple2(
+			$author$project$UrlPersistence$Model(
+				{appModel: appModel, currentUrl: url, key: key}),
+			A2($elm$core$Platform$Cmd$map, $author$project$UrlPersistence$ForApp, cmd));
+	});
+var $elm$core$Platform$Sub$map = _Platform_map;
+var $author$project$UrlPersistence$subscriptions = F2(
+	function (s, _v0) {
+		var m = _v0.a;
+		return A2(
+			$elm$core$Platform$Sub$map,
+			$author$project$UrlPersistence$ForApp,
+			s(m.appModel));
+	});
+var $elm$core$Platform$Cmd$batch = _Platform_batch;
+var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
+var $elm$browser$Browser$Navigation$pushUrl = _Browser_pushUrl;
+var $elm$url$Url$addPort = F2(
+	function (maybePort, starter) {
+		if (maybePort.$ === 'Nothing') {
+			return starter;
+		} else {
+			var port_ = maybePort.a;
+			return starter + (':' + $elm$core$String$fromInt(port_));
+		}
+	});
+var $elm$url$Url$addPrefixed = F3(
+	function (prefix, maybeSegment, starter) {
+		if (maybeSegment.$ === 'Nothing') {
+			return starter;
+		} else {
+			var segment = maybeSegment.a;
+			return _Utils_ap(
+				starter,
+				_Utils_ap(prefix, segment));
+		}
+	});
+var $elm$url$Url$toString = function (url) {
+	var http = function () {
+		var _v0 = url.protocol;
+		if (_v0.$ === 'Http') {
+			return 'http://';
+		} else {
+			return 'https://';
+		}
+	}();
+	return A3(
+		$elm$url$Url$addPrefixed,
+		'#',
+		url.fragment,
+		A3(
+			$elm$url$Url$addPrefixed,
+			'?',
+			url.query,
+			_Utils_ap(
+				A2(
+					$elm$url$Url$addPort,
+					url.port_,
+					_Utils_ap(http, url.host)),
+				url.path)));
+};
+var $author$project$UrlPersistence$update = F5(
+	function (u, urlPath, onUrlChange, msg, _v0) {
+		update:
+		while (true) {
+			var m = _v0.a;
+			switch (msg.$) {
+				case 'ForApp':
+					var appMsg = msg.a;
+					var _v2 = A2(u, appMsg, m.appModel);
+					var newAppModel = _v2.a;
+					var cmd = _v2.b;
+					var newUrl = A2(urlPath, newAppModel, m.currentUrl);
+					return _Utils_eq(newUrl, m.currentUrl) ? _Utils_Tuple2(
+						$author$project$UrlPersistence$Model(
+							_Utils_update(
+								m,
+								{appModel: newAppModel})),
+						A2($elm$core$Platform$Cmd$map, $author$project$UrlPersistence$ForApp, cmd)) : _Utils_Tuple2(
+						$author$project$UrlPersistence$Model(
+							_Utils_update(
+								m,
+								{appModel: newAppModel, currentUrl: newUrl})),
+						$elm$core$Platform$Cmd$batch(
+							_List_fromArray(
+								[
+									A2($elm$core$Platform$Cmd$map, $author$project$UrlPersistence$ForApp, cmd),
+									A2(
+									$elm$browser$Browser$Navigation$pushUrl,
+									m.key,
+									$elm$url$Url$toString(newUrl))
+								])));
+				case 'UrlRequest':
+					if (msg.a.$ === 'Internal') {
+						var url = msg.a.a;
+						return _Utils_Tuple2(
+							$author$project$UrlPersistence$Model(m),
+							A2(
+								$elm$browser$Browser$Navigation$pushUrl,
+								m.key,
+								$elm$url$Url$toString(url)));
+					} else {
+						var url = msg.a.a;
+						return _Utils_Tuple2(
+							$author$project$UrlPersistence$Model(m),
+							A2($elm$browser$Browser$Navigation$pushUrl, m.key, url));
+					}
+				default:
+					var newUrl = msg.a;
+					if (_Utils_eq(newUrl, m.currentUrl)) {
+						return _Utils_Tuple2(
+							$author$project$UrlPersistence$Model(m),
+							$elm$core$Platform$Cmd$none);
+					} else {
+						var $temp$u = u,
+							$temp$urlPath = urlPath,
+							$temp$onUrlChange = onUrlChange,
+							$temp$msg = $author$project$UrlPersistence$ForApp(
+							onUrlChange(newUrl)),
+							$temp$_v0 = $author$project$UrlPersistence$Model(
+							_Utils_update(
+								m,
+								{currentUrl: newUrl}));
+						u = $temp$u;
+						urlPath = $temp$urlPath;
+						onUrlChange = $temp$onUrlChange;
+						msg = $temp$msg;
+						_v0 = $temp$_v0;
+						continue update;
+					}
+			}
+		}
+	});
+var $elm$core$Basics$composeL = F3(
+	function (g, f, x) {
+		return g(
+			f(x));
+	});
+var $elm$virtual_dom$VirtualDom$map = _VirtualDom_map;
+var $elm$html$Html$map = $elm$virtual_dom$VirtualDom$map;
+var $author$project$UrlPersistence$view = F2(
+	function (v, _v0) {
+		var m = _v0.a;
+		var doc = v(m.appModel);
+		return {
+			body: A2(
+				A2($elm$core$Basics$composeL, $elm$core$List$map, $elm$html$Html$map),
+				$author$project$UrlPersistence$ForApp,
+				doc.body),
+			title: doc.title
+		};
+	});
+var $author$project$UrlPersistence$app = function (cfg) {
+	return $elm$browser$Browser$application(
+		{
+			init: $author$project$UrlPersistence$init(cfg.init),
+			onUrlChange: $author$project$UrlPersistence$UrlChange,
+			onUrlRequest: $author$project$UrlPersistence$UrlRequest,
+			subscriptions: $author$project$UrlPersistence$subscriptions(cfg.subscriptions),
+			update: A3($author$project$UrlPersistence$update, cfg.update, cfg.modelUrl, cfg.onUrlChange),
+			view: $author$project$UrlPersistence$view(cfg.view)
+		});
+};
 var $author$project$Main$Loading = {$: 'Loading'};
 var $author$project$Main$ViewAlbums = function (a) {
 	return {$: 'ViewAlbums', a: a};
 };
-var $elm$core$Platform$Cmd$map = _Platform_map;
-var $author$project$QStore$Query$Query = F2(
+var $author$project$Main$ViewTracks = F2(
 	function (a, b) {
-		return {$: 'Query', a: a, b: b};
+		return {$: 'ViewTracks', a: a, b: b};
 	});
-var $elm$core$List$append = F2(
-	function (xs, ys) {
-		if (!ys.b) {
-			return xs;
-		} else {
-			return A3($elm$core$List$foldr, $elm$core$List$cons, ys, xs);
-		}
-	});
-var $author$project$QStore$Query$listApp = F2(
-	function (fl, al) {
-		var _v0 = _Utils_Tuple2(fl, al);
-		if (!_v0.a.b) {
-			return _List_Nil;
-		} else {
-			if (!_v0.b.b) {
-				return _List_Nil;
-			} else {
-				var _v1 = _v0.a;
-				var f = _v1.a;
-				var nextfl = _v1.b;
-				var _v2 = _v0.b;
-				var a = _v2.a;
-				var nextas = _v2.b;
-				return A2(
-					$elm$core$List$cons,
-					f(a),
-					A2($author$project$QStore$Query$listApp, nextfl, nextas));
-			}
-		}
-	});
-var $elm$core$Result$map = F2(
-	function (func, ra) {
-		if (ra.$ === 'Ok') {
-			var a = ra.a;
-			return $elm$core$Result$Ok(
-				func(a));
-		} else {
-			var e = ra.a;
-			return $elm$core$Result$Err(e);
-		}
-	});
-var $author$project$QStore$Query$resApp = F2(
-	function (fr, ar) {
-		var _v0 = _Utils_Tuple2(fr, ar);
-		if (_v0.a.$ === 'Err') {
-			var err = _v0.a.a;
-			return $elm$core$Result$Err(err);
-		} else {
-			if (_v0.b.$ === 'Err') {
-				var err = _v0.b.a;
-				return $elm$core$Result$Err(err);
-			} else {
-				var f = _v0.a.a;
-				var a = _v0.b.a;
-				return $elm$core$Result$Ok(
-					f(a));
-			}
-		}
-	});
-var $author$project$QStore$Query$app = F2(
-	function (_v0, _v1) {
-		var aq = _v0.a;
-		var aproc = _v0.b;
-		var fq = _v1.a;
-		var fproc = _v1.b;
-		return A2(
-			$author$project$QStore$Query$Query,
-			A2($elm$core$List$append, fq, aq),
-			function (resp) {
-				return A2(
-					$author$project$QStore$Query$resApp,
-					A2(
-						$elm$core$Result$map,
-						$author$project$QStore$Query$listApp,
-						fproc(resp)),
-					aproc(resp));
-			});
-	});
-var $author$project$QStore$Query$QueryVar = F2(
-	function (a, b) {
-		return {$: 'QueryVar', a: a, b: b};
-	});
-var $author$project$QStore$Query$Var = function (a) {
-	return {$: 'Var', a: a};
-};
 var $elm$core$String$append = _String_append;
-var $author$project$QStore$Query$valueToId = function (v) {
-	if (v.$ === 'VId') {
-		var x = v.a;
-		return $elm$core$Maybe$Just(x);
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
-};
-var $author$project$QStore$Query$idVar = $author$project$QStore$Query$Var(
-	function (n) {
-		return _Utils_Tuple2(
-			n + 1,
-			A2(
-				$author$project$QStore$Query$QueryVar,
-				A2(
-					$elm$core$String$append,
-					'x',
-					$elm$core$String$fromInt(n)),
-				$author$project$QStore$Query$valueToId));
+var $author$project$Main$dbUrl = 'http://192.168.0.26:2718/database';
+var $elm$url$Url$Parser$State = F5(
+	function (visited, unvisited, params, frag, value) {
+		return {frag: frag, params: params, unvisited: unvisited, value: value, visited: visited};
 	});
-var $author$project$QStore$Query$pure = function (a) {
-	return A2(
-		$author$project$QStore$Query$Query,
-		_List_Nil,
-		function (_v0) {
-			return $elm$core$Result$Ok(
-				_List_fromArray(
-					[a]));
-		});
-};
-var $author$project$QStore$Query$QVal = function (a) {
-	return {$: 'QVal', a: a};
-};
-var $author$project$QStore$Query$QuerySlot = F3(
-	function (a, b, c) {
-		return {$: 'QuerySlot', a: a, b: b, c: c};
-	});
-var $author$project$QStore$Core$VString = function (a) {
-	return {$: 'VString', a: a};
-};
-var $author$project$QStore$Query$string = function (s) {
-	return A3(
-		$author$project$QStore$Query$QuerySlot,
-		$author$project$QStore$Query$QVal(s),
-		$author$project$QStore$Query$QVal(
-			$author$project$QStore$Core$VString(s)),
-		function (_v0) {
-			return $elm$core$Result$Ok(
-				$elm$core$Maybe$Just(_Utils_Tuple0));
-		});
-};
-var $author$project$QStore$Query$valueToString = function (v) {
-	if (v.$ === 'VString') {
-		var s = v.a;
-		return $elm$core$Maybe$Just(s);
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
-};
-var $author$project$QStore$Query$stringVar = $author$project$QStore$Query$Var(
-	function (n) {
-		return _Utils_Tuple2(
-			n + 1,
-			A2(
-				$author$project$QStore$Query$QueryVar,
-				A2(
-					$elm$core$String$append,
-					'x',
-					$elm$core$String$fromInt(n)),
-				$author$project$QStore$Query$valueToString));
-	});
-var $elm$core$List$concat = function (lists) {
-	return A3($elm$core$List$foldr, $elm$core$List$append, _List_Nil, lists);
-};
-var $elm$core$Maybe$map4 = F5(
-	function (func, ma, mb, mc, md) {
-		if (ma.$ === 'Nothing') {
+var $elm$url$Url$Parser$getFirstMatch = function (states) {
+	getFirstMatch:
+	while (true) {
+		if (!states.b) {
 			return $elm$core$Maybe$Nothing;
 		} else {
-			var a = ma.a;
-			if (mb.$ === 'Nothing') {
-				return $elm$core$Maybe$Nothing;
+			var state = states.a;
+			var rest = states.b;
+			var _v1 = state.unvisited;
+			if (!_v1.b) {
+				return $elm$core$Maybe$Just(state.value);
 			} else {
-				var b = mb.a;
-				if (mc.$ === 'Nothing') {
-					return $elm$core$Maybe$Nothing;
+				if ((_v1.a === '') && (!_v1.b.b)) {
+					return $elm$core$Maybe$Just(state.value);
 				} else {
-					var c = mc.a;
-					if (md.$ === 'Nothing') {
-						return $elm$core$Maybe$Nothing;
-					} else {
-						var d = md.a;
-						return $elm$core$Maybe$Just(
-							A4(func, a, b, c, d));
-					}
+					var $temp$states = rest;
+					states = $temp$states;
+					continue getFirstMatch;
 				}
 			}
 		}
-	});
-var $elm$core$Result$map4 = F5(
-	function (func, ra, rb, rc, rd) {
-		if (ra.$ === 'Err') {
-			var x = ra.a;
-			return $elm$core$Result$Err(x);
-		} else {
-			var a = ra.a;
-			if (rb.$ === 'Err') {
-				var x = rb.a;
-				return $elm$core$Result$Err(x);
-			} else {
-				var b = rb.a;
-				if (rc.$ === 'Err') {
-					var x = rc.a;
-					return $elm$core$Result$Err(x);
-				} else {
-					var c = rc.a;
-					if (rd.$ === 'Err') {
-						var x = rd.a;
-						return $elm$core$Result$Err(x);
-					} else {
-						var d = rd.a;
-						return $elm$core$Result$Ok(
-							A4(func, a, b, c, d));
-					}
-				}
-			}
-		}
-	});
-var $author$project$QStore$Query$querySlotProc = function (_v0) {
-	var proc = _v0.c;
-	return proc;
-};
-var $author$project$QStore$Query$querySlotToQueryVal = function (_v0) {
-	var qv = _v0.a;
-	return qv;
-};
-var $author$project$QStore$Query$querySlotToQueryValValue = function (_v0) {
-	var qv = _v0.b;
-	return qv;
-};
-var $elm$core$Result$map2 = F3(
-	function (func, ra, rb) {
-		if (ra.$ === 'Err') {
-			var x = ra.a;
-			return $elm$core$Result$Err(x);
-		} else {
-			var a = ra.a;
-			if (rb.$ === 'Err') {
-				var x = rb.a;
-				return $elm$core$Result$Err(x);
-			} else {
-				var b = rb.a;
-				return $elm$core$Result$Ok(
-					A2(func, a, b));
-			}
-		}
-	});
-var $author$project$QStore$Query$sequenceResults = function (l) {
-	if (!l.b) {
-		return $elm$core$Result$Ok(_List_Nil);
-	} else {
-		var res = l.a;
-		var ress = l.b;
-		return A3(
-			$elm$core$Result$map2,
-			F2(
-				function (resOk, ressOk) {
-					return A2($elm$core$List$cons, resOk, ressOk);
-				}),
-			res,
-			$author$project$QStore$Query$sequenceResults(ress));
 	}
 };
-var $elm$core$Maybe$withDefault = F2(
-	function (_default, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return value;
+var $elm$url$Url$Parser$removeFinalEmpty = function (segments) {
+	if (!segments.b) {
+		return _List_Nil;
+	} else {
+		if ((segments.a === '') && (!segments.b.b)) {
+			return _List_Nil;
 		} else {
-			return _default;
+			var segment = segments.a;
+			var rest = segments.b;
+			return A2(
+				$elm$core$List$cons,
+				segment,
+				$elm$url$Url$Parser$removeFinalEmpty(rest));
+		}
+	}
+};
+var $elm$url$Url$Parser$preparePath = function (path) {
+	var _v0 = A2($elm$core$String$split, '/', path);
+	if (_v0.b && (_v0.a === '')) {
+		var segments = _v0.b;
+		return $elm$url$Url$Parser$removeFinalEmpty(segments);
+	} else {
+		var segments = _v0;
+		return $elm$url$Url$Parser$removeFinalEmpty(segments);
+	}
+};
+var $elm$url$Url$Parser$addToParametersHelp = F2(
+	function (value, maybeList) {
+		if (maybeList.$ === 'Nothing') {
+			return $elm$core$Maybe$Just(
+				_List_fromArray(
+					[value]));
+		} else {
+			var list = maybeList.a;
+			return $elm$core$Maybe$Just(
+				A2($elm$core$List$cons, value, list));
 		}
 	});
-var $author$project$QStore$Query$true = function (q) {
-	return A2(
-		$author$project$QStore$Query$Query,
-		_List_fromArray(
-			[
-				{
-				attr: $author$project$QStore$Query$querySlotToQueryVal(q.attr),
-				id: $author$project$QStore$Query$querySlotToQueryVal(q.id),
-				tx: $author$project$QStore$Query$querySlotToQueryVal(q.tx),
-				value: $author$project$QStore$Query$querySlotToQueryValValue(q.value)
-			}
-			]),
-		function (resp) {
-			return A2(
-				$elm$core$Result$map,
-				$elm$core$List$concat,
-				$author$project$QStore$Query$sequenceResults(
-					A2(
-						$elm$core$List$map,
-						function (answ) {
-							return A5(
-								$elm$core$Result$map4,
-								F4(
-									function (idM, attrM, valueM, txM) {
-										return A2(
-											$elm$core$Maybe$withDefault,
-											_List_Nil,
-											A5(
-												$elm$core$Maybe$map4,
-												F4(
-													function (x, attr, value, tx) {
-														return _List_fromArray(
-															[
-																{attr: attr, id: x, tx: tx, value: value}
-															]);
-													}),
-												idM,
-												attrM,
-												valueM,
-												txM));
-									}),
-								A2($author$project$QStore$Query$querySlotProc, q.id, answ),
-								A2($author$project$QStore$Query$querySlotProc, q.attr, answ),
-								A2($author$project$QStore$Query$querySlotProc, q.value, answ),
-								A2($author$project$QStore$Query$querySlotProc, q.tx, answ));
-						},
-						resp)));
-		});
-};
-var $author$project$QStore$Query$BadResponse = function (a) {
-	return {$: 'BadResponse', a: a};
-};
-var $author$project$QStore$Query$QVar = function (a) {
-	return {$: 'QVar', a: a};
-};
+var $elm$url$Url$percentDecode = _Url_percentDecode;
 var $elm$core$Basics$compare = _Utils_compare;
 var $elm$core$Dict$get = F2(
 	function (targetKey, dict) {
@@ -5865,159 +5810,12 @@ var $elm$core$Dict$get = F2(
 			}
 		}
 	});
-var $elm$core$Maybe$map = F2(
-	function (f, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return $elm$core$Maybe$Just(
-				f(value));
-		} else {
-			return $elm$core$Maybe$Nothing;
-		}
-	});
-var $author$project$QStore$Query$var = function (_v0) {
-	var x = _v0.a;
-	var proj = _v0.b;
-	return A3(
-		$author$project$QStore$Query$QuerySlot,
-		$author$project$QStore$Query$QVar(x),
-		$author$project$QStore$Query$QVar(x),
-		function (answ) {
-			return A2(
-				$elm$core$Result$map,
-				proj,
-				A2(
-					$elm$core$Maybe$withDefault,
-					$elm$core$Result$Err(
-						$author$project$QStore$Query$BadResponse(
-							A2($elm$core$String$append, 'No value returned for variable: ', x))),
-					A2(
-						$elm$core$Maybe$map,
-						$elm$core$Result$Ok,
-						A2($elm$core$Dict$get, x, answ))));
-		});
-};
-var $author$project$QStore$Query$varApp = F2(
-	function (_v0, _v1) {
-		var av = _v0.a;
-		var fv = _v1.a;
-		return $author$project$QStore$Query$Var(
-			function (m) {
-				var _v2 = fv(m);
-				var n = _v2.a;
-				var f = _v2.b;
-				var _v3 = av(n);
-				var o = _v3.a;
-				var a = _v3.b;
-				return _Utils_Tuple2(
-					o,
-					f(a));
-			});
-	});
-var $author$project$QStore$Query$varPure = function (a) {
-	return $author$project$QStore$Query$Var(
-		function (n) {
-			return _Utils_Tuple2(n, a);
-		});
-};
-var $author$project$QStore$Query$QWildcard = {$: 'QWildcard'};
-var $author$project$QStore$Query$wildcard = A3(
-	$author$project$QStore$Query$QuerySlot,
-	$author$project$QStore$Query$QWildcard,
-	$author$project$QStore$Query$QWildcard,
-	function (_v0) {
-		return $elm$core$Result$Ok(
-			$elm$core$Maybe$Just(_Utils_Tuple0));
-	});
-var $author$project$Album$query = _Utils_Tuple2(
-	A2(
-		$author$project$QStore$Query$varApp,
-		$author$project$QStore$Query$stringVar,
-		A2(
-			$author$project$QStore$Query$varApp,
-			$author$project$QStore$Query$idVar,
-			$author$project$QStore$Query$varPure(
-				F2(
-					function (id, name) {
-						return _Utils_Tuple2(id, name);
-					})))),
-	function (_v0) {
-		var id = _v0.a;
-		var name = _v0.b;
-		return A2(
-			$author$project$QStore$Query$app,
-			$author$project$QStore$Query$true(
-				{
-					attr: $author$project$QStore$Query$string('name'),
-					id: $author$project$QStore$Query$var(id),
-					tx: $author$project$QStore$Query$wildcard,
-					value: $author$project$QStore$Query$var(name)
-				}),
-			A2(
-				$author$project$QStore$Query$app,
-				$author$project$QStore$Query$true(
-					{
-						attr: $author$project$QStore$Query$string('is'),
-						id: $author$project$QStore$Query$var(id),
-						tx: $author$project$QStore$Query$wildcard,
-						value: $author$project$QStore$Query$string('album')
-					}),
-				$author$project$QStore$Query$pure(
-					F2(
-						function (a, b) {
-							return {id: a.id, name: b.value};
-						}))));
-	});
-var $author$project$QStore$Query$NetworkError = function (a) {
-	return {$: 'NetworkError', a: a};
-};
-var $elm$http$Http$BadBody = function (a) {
-	return {$: 'BadBody', a: a};
-};
-var $elm$core$Result$andThen = F2(
-	function (callback, result) {
-		if (result.$ === 'Ok') {
-			var value = result.a;
-			return callback(value);
-		} else {
-			var msg = result.a;
-			return $elm$core$Result$Err(msg);
-		}
-	});
-var $elm$http$Http$BadStatus_ = F2(
-	function (a, b) {
-		return {$: 'BadStatus_', a: a, b: b};
-	});
-var $elm$http$Http$BadUrl_ = function (a) {
-	return {$: 'BadUrl_', a: a};
-};
-var $elm$http$Http$GoodStatus_ = F2(
-	function (a, b) {
-		return {$: 'GoodStatus_', a: a, b: b};
-	});
-var $elm$http$Http$NetworkError_ = {$: 'NetworkError_'};
-var $elm$http$Http$Receiving = function (a) {
-	return {$: 'Receiving', a: a};
-};
-var $elm$http$Http$Sending = function (a) {
-	return {$: 'Sending', a: a};
-};
-var $elm$http$Http$Timeout_ = {$: 'Timeout_'};
-var $elm$core$Dict$RBEmpty_elm_builtin = {$: 'RBEmpty_elm_builtin'};
-var $elm$core$Dict$empty = $elm$core$Dict$RBEmpty_elm_builtin;
-var $elm$core$Maybe$isJust = function (maybe) {
-	if (maybe.$ === 'Just') {
-		return true;
-	} else {
-		return false;
-	}
-};
-var $elm$core$Platform$sendToSelf = _Platform_sendToSelf;
 var $elm$core$Dict$Black = {$: 'Black'};
 var $elm$core$Dict$RBNode_elm_builtin = F5(
 	function (a, b, c, d, e) {
 		return {$: 'RBNode_elm_builtin', a: a, b: b, c: c, d: d, e: e};
 	});
+var $elm$core$Dict$RBEmpty_elm_builtin = {$: 'RBEmpty_elm_builtin'};
 var $elm$core$Dict$Red = {$: 'Red'};
 var $elm$core$Dict$balance = F5(
 	function (color, key, value, left, right) {
@@ -6494,6 +6292,485 @@ var $elm$core$Dict$update = F3(
 			return A2($elm$core$Dict$remove, targetKey, dictionary);
 		}
 	});
+var $elm$url$Url$Parser$addParam = F2(
+	function (segment, dict) {
+		var _v0 = A2($elm$core$String$split, '=', segment);
+		if ((_v0.b && _v0.b.b) && (!_v0.b.b.b)) {
+			var rawKey = _v0.a;
+			var _v1 = _v0.b;
+			var rawValue = _v1.a;
+			var _v2 = $elm$url$Url$percentDecode(rawKey);
+			if (_v2.$ === 'Nothing') {
+				return dict;
+			} else {
+				var key = _v2.a;
+				var _v3 = $elm$url$Url$percentDecode(rawValue);
+				if (_v3.$ === 'Nothing') {
+					return dict;
+				} else {
+					var value = _v3.a;
+					return A3(
+						$elm$core$Dict$update,
+						key,
+						$elm$url$Url$Parser$addToParametersHelp(value),
+						dict);
+				}
+			}
+		} else {
+			return dict;
+		}
+	});
+var $elm$core$Dict$empty = $elm$core$Dict$RBEmpty_elm_builtin;
+var $elm$url$Url$Parser$prepareQuery = function (maybeQuery) {
+	if (maybeQuery.$ === 'Nothing') {
+		return $elm$core$Dict$empty;
+	} else {
+		var qry = maybeQuery.a;
+		return A3(
+			$elm$core$List$foldr,
+			$elm$url$Url$Parser$addParam,
+			$elm$core$Dict$empty,
+			A2($elm$core$String$split, '&', qry));
+	}
+};
+var $elm$url$Url$Parser$parse = F2(
+	function (_v0, url) {
+		var parser = _v0.a;
+		return $elm$url$Url$Parser$getFirstMatch(
+			parser(
+				A5(
+					$elm$url$Url$Parser$State,
+					_List_Nil,
+					$elm$url$Url$Parser$preparePath(url.path),
+					$elm$url$Url$Parser$prepareQuery(url.query),
+					url.fragment,
+					$elm$core$Basics$identity)));
+	});
+var $author$project$QStore$Ctx$Ctx = function (a) {
+	return {$: 'Ctx', a: a};
+};
+var $author$project$QStore$Ctx$app = F2(
+	function (_v0, _v1) {
+		var av = _v0.a;
+		var fv = _v1.a;
+		return $author$project$QStore$Ctx$Ctx(
+			function (m) {
+				var _v2 = fv(m);
+				var n = _v2.a;
+				var f = _v2.b;
+				var _v3 = av(n);
+				var o = _v3.a;
+				var a = _v3.b;
+				return _Utils_Tuple2(
+					o,
+					f(a));
+			});
+	});
+var $author$project$QStore$Query$Query = F2(
+	function (a, b) {
+		return {$: 'Query', a: a, b: b};
+	});
+var $elm$core$List$append = F2(
+	function (xs, ys) {
+		if (!ys.b) {
+			return xs;
+		} else {
+			return A3($elm$core$List$foldr, $elm$core$List$cons, ys, xs);
+		}
+	});
+var $elm$core$Result$map = F2(
+	function (func, ra) {
+		if (ra.$ === 'Ok') {
+			var a = ra.a;
+			return $elm$core$Result$Ok(
+				func(a));
+		} else {
+			var e = ra.a;
+			return $elm$core$Result$Err(e);
+		}
+	});
+var $author$project$QStore$Query$maybeApp = F2(
+	function (mf, ma) {
+		var _v0 = _Utils_Tuple2(mf, ma);
+		if ((_v0.a.$ === 'Just') && (_v0.b.$ === 'Just')) {
+			var f = _v0.a.a;
+			var a = _v0.b.a;
+			return $elm$core$Maybe$Just(
+				f(a));
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	});
+var $author$project$QStore$Query$resApp = F2(
+	function (fr, ar) {
+		var _v0 = _Utils_Tuple2(fr, ar);
+		if (_v0.a.$ === 'Err') {
+			var err = _v0.a.a;
+			return $elm$core$Result$Err(err);
+		} else {
+			if (_v0.b.$ === 'Err') {
+				var err = _v0.b.a;
+				return $elm$core$Result$Err(err);
+			} else {
+				var f = _v0.a.a;
+				var a = _v0.b.a;
+				return $elm$core$Result$Ok(
+					f(a));
+			}
+		}
+	});
+var $author$project$QStore$Query$app = F2(
+	function (_v0, _v1) {
+		var aq = _v0.a;
+		var aproc = _v0.b;
+		var fq = _v1.a;
+		var fproc = _v1.b;
+		return A2(
+			$author$project$QStore$Query$Query,
+			A2($elm$core$List$append, fq, aq),
+			function (resp) {
+				return A2(
+					$author$project$QStore$Query$resApp,
+					A2(
+						$elm$core$Result$map,
+						$author$project$QStore$Query$maybeApp,
+						fproc(resp)),
+					aproc(resp));
+			});
+	});
+var $author$project$QStore$Ctx$Var = F2(
+	function (a, b) {
+		return {$: 'Var', a: a, b: b};
+	});
+var $author$project$QStore$Ctx$valueToId = function (v) {
+	if (v.$ === 'VId') {
+		var x = v.a;
+		return $elm$core$Maybe$Just(x);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$QStore$Ctx$idVar = $author$project$QStore$Ctx$Ctx(
+	function (n) {
+		return _Utils_Tuple2(
+			n + 1,
+			A2(
+				$author$project$QStore$Ctx$Var,
+				A2(
+					$elm$core$String$append,
+					'x',
+					$elm$core$String$fromInt(n)),
+				$author$project$QStore$Ctx$valueToId));
+	});
+var $author$project$QStore$Ctx$pure = function (a) {
+	return $author$project$QStore$Ctx$Ctx(
+		function (n) {
+			return _Utils_Tuple2(n, a);
+		});
+};
+var $author$project$QStore$Query$pure = function (a) {
+	return A2(
+		$author$project$QStore$Query$Query,
+		_List_Nil,
+		function (_v0) {
+			return $elm$core$Result$Ok(
+				$elm$core$Maybe$Just(a));
+		});
+};
+var $author$project$QStore$Query$QVal = function (a) {
+	return {$: 'QVal', a: a};
+};
+var $author$project$QStore$Query$QuerySlot = F3(
+	function (a, b, c) {
+		return {$: 'QuerySlot', a: a, b: b, c: c};
+	});
+var $author$project$QStore$Core$VString = function (a) {
+	return {$: 'VString', a: a};
+};
+var $author$project$QStore$Query$string = function (s) {
+	return A3(
+		$author$project$QStore$Query$QuerySlot,
+		$author$project$QStore$Query$QVal(s),
+		$author$project$QStore$Query$QVal(
+			$author$project$QStore$Core$VString(s)),
+		function (_v0) {
+			return $elm$core$Result$Ok(
+				$elm$core$Maybe$Just(_Utils_Tuple0));
+		});
+};
+var $author$project$QStore$Ctx$valueToString = function (v) {
+	if (v.$ === 'VString') {
+		var s = v.a;
+		return $elm$core$Maybe$Just(s);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$QStore$Ctx$stringVar = $author$project$QStore$Ctx$Ctx(
+	function (n) {
+		return _Utils_Tuple2(
+			n + 1,
+			A2(
+				$author$project$QStore$Ctx$Var,
+				A2(
+					$elm$core$String$append,
+					'x',
+					$elm$core$String$fromInt(n)),
+				$author$project$QStore$Ctx$valueToString));
+	});
+var $elm$core$Maybe$map4 = F5(
+	function (func, ma, mb, mc, md) {
+		if (ma.$ === 'Nothing') {
+			return $elm$core$Maybe$Nothing;
+		} else {
+			var a = ma.a;
+			if (mb.$ === 'Nothing') {
+				return $elm$core$Maybe$Nothing;
+			} else {
+				var b = mb.a;
+				if (mc.$ === 'Nothing') {
+					return $elm$core$Maybe$Nothing;
+				} else {
+					var c = mc.a;
+					if (md.$ === 'Nothing') {
+						return $elm$core$Maybe$Nothing;
+					} else {
+						var d = md.a;
+						return $elm$core$Maybe$Just(
+							A4(func, a, b, c, d));
+					}
+				}
+			}
+		}
+	});
+var $elm$core$Result$map4 = F5(
+	function (func, ra, rb, rc, rd) {
+		if (ra.$ === 'Err') {
+			var x = ra.a;
+			return $elm$core$Result$Err(x);
+		} else {
+			var a = ra.a;
+			if (rb.$ === 'Err') {
+				var x = rb.a;
+				return $elm$core$Result$Err(x);
+			} else {
+				var b = rb.a;
+				if (rc.$ === 'Err') {
+					var x = rc.a;
+					return $elm$core$Result$Err(x);
+				} else {
+					var c = rc.a;
+					if (rd.$ === 'Err') {
+						var x = rd.a;
+						return $elm$core$Result$Err(x);
+					} else {
+						var d = rd.a;
+						return $elm$core$Result$Ok(
+							A4(func, a, b, c, d));
+					}
+				}
+			}
+		}
+	});
+var $author$project$QStore$Query$querySlotProc = function (_v0) {
+	var proc = _v0.c;
+	return proc;
+};
+var $author$project$QStore$Query$querySlotToQueryVal = function (_v0) {
+	var qv = _v0.a;
+	return qv;
+};
+var $author$project$QStore$Query$querySlotToQueryValValue = function (_v0) {
+	var qv = _v0.b;
+	return qv;
+};
+var $author$project$QStore$Query$true = function (q) {
+	return A2(
+		$author$project$QStore$Query$Query,
+		_List_fromArray(
+			[
+				{
+				attr: $author$project$QStore$Query$querySlotToQueryVal(q.attr),
+				id: $author$project$QStore$Query$querySlotToQueryVal(q.id),
+				tx: $author$project$QStore$Query$querySlotToQueryVal(q.tx),
+				value: $author$project$QStore$Query$querySlotToQueryValValue(q.value)
+			}
+			]),
+		function (answ) {
+			return A5(
+				$elm$core$Result$map4,
+				F4(
+					function (idM, attrM, valueM, txM) {
+						return A5(
+							$elm$core$Maybe$map4,
+							F4(
+								function (x, attr, value, tx) {
+									return {attr: attr, id: x, tx: tx, value: value};
+								}),
+							idM,
+							attrM,
+							valueM,
+							txM);
+					}),
+				A2($author$project$QStore$Query$querySlotProc, q.id, answ),
+				A2($author$project$QStore$Query$querySlotProc, q.attr, answ),
+				A2($author$project$QStore$Query$querySlotProc, q.value, answ),
+				A2($author$project$QStore$Query$querySlotProc, q.tx, answ));
+		});
+};
+var $author$project$QStore$Query$BadResponse = function (a) {
+	return {$: 'BadResponse', a: a};
+};
+var $author$project$QStore$Query$QVar = function (a) {
+	return {$: 'QVar', a: a};
+};
+var $elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return $elm$core$Maybe$Just(
+				f(value));
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	});
+var $author$project$QStore$Ctx$matchValue = F2(
+	function (_v0, v) {
+		var f = _v0.b;
+		return f(v);
+	});
+var $author$project$QStore$Ctx$varToString = function (_v0) {
+	var s = _v0.a;
+	return s;
+};
+var $elm$core$Maybe$withDefault = F2(
+	function (_default, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return value;
+		} else {
+			return _default;
+		}
+	});
+var $author$project$QStore$Query$var = function (x) {
+	return A3(
+		$author$project$QStore$Query$QuerySlot,
+		$author$project$QStore$Query$QVar(
+			$author$project$QStore$Ctx$varToString(x)),
+		$author$project$QStore$Query$QVar(
+			$author$project$QStore$Ctx$varToString(x)),
+		function (answ) {
+			return A2(
+				$elm$core$Result$map,
+				$author$project$QStore$Ctx$matchValue(x),
+				A2(
+					$elm$core$Maybe$withDefault,
+					$elm$core$Result$Err(
+						$author$project$QStore$Query$BadResponse(
+							A2(
+								$elm$core$String$append,
+								'No value returned for variable: ',
+								$author$project$QStore$Ctx$varToString(x)))),
+					A2(
+						$elm$core$Maybe$map,
+						$elm$core$Result$Ok,
+						A2(
+							$elm$core$Dict$get,
+							$author$project$QStore$Ctx$varToString(x),
+							answ))));
+		});
+};
+var $author$project$QStore$Query$QWildcard = {$: 'QWildcard'};
+var $author$project$QStore$Query$wildcard = A3(
+	$author$project$QStore$Query$QuerySlot,
+	$author$project$QStore$Query$QWildcard,
+	$author$project$QStore$Query$QWildcard,
+	function (_v0) {
+		return $elm$core$Result$Ok(
+			$elm$core$Maybe$Just(_Utils_Tuple0));
+	});
+var $author$project$Album$query = _Utils_Tuple2(
+	A2(
+		$author$project$QStore$Ctx$app,
+		$author$project$QStore$Ctx$stringVar,
+		A2(
+			$author$project$QStore$Ctx$app,
+			$author$project$QStore$Ctx$idVar,
+			$author$project$QStore$Ctx$pure(
+				F2(
+					function (id, name) {
+						return _Utils_Tuple2(id, name);
+					})))),
+	function (_v0) {
+		var id = _v0.a;
+		var name = _v0.b;
+		return A2(
+			$author$project$QStore$Query$app,
+			$author$project$QStore$Query$true(
+				{
+					attr: $author$project$QStore$Query$string('name'),
+					id: $author$project$QStore$Query$var(id),
+					tx: $author$project$QStore$Query$wildcard,
+					value: $author$project$QStore$Query$var(name)
+				}),
+			A2(
+				$author$project$QStore$Query$app,
+				$author$project$QStore$Query$true(
+					{
+						attr: $author$project$QStore$Query$string('is'),
+						id: $author$project$QStore$Query$var(id),
+						tx: $author$project$QStore$Query$wildcard,
+						value: $author$project$QStore$Query$string('album')
+					}),
+				$author$project$QStore$Query$pure(
+					F2(
+						function (a, b) {
+							return {id: a.id, name: b.value};
+						}))));
+	});
+var $author$project$QStore$Query$NetworkError = function (a) {
+	return {$: 'NetworkError', a: a};
+};
+var $elm$http$Http$BadBody = function (a) {
+	return {$: 'BadBody', a: a};
+};
+var $elm$core$Result$andThen = F2(
+	function (callback, result) {
+		if (result.$ === 'Ok') {
+			var value = result.a;
+			return callback(value);
+		} else {
+			var msg = result.a;
+			return $elm$core$Result$Err(msg);
+		}
+	});
+var $elm$http$Http$BadStatus_ = F2(
+	function (a, b) {
+		return {$: 'BadStatus_', a: a, b: b};
+	});
+var $elm$http$Http$BadUrl_ = function (a) {
+	return {$: 'BadUrl_', a: a};
+};
+var $elm$http$Http$GoodStatus_ = F2(
+	function (a, b) {
+		return {$: 'GoodStatus_', a: a, b: b};
+	});
+var $elm$http$Http$NetworkError_ = {$: 'NetworkError_'};
+var $elm$http$Http$Receiving = function (a) {
+	return {$: 'Receiving', a: a};
+};
+var $elm$http$Http$Sending = function (a) {
+	return {$: 'Sending', a: a};
+};
+var $elm$http$Http$Timeout_ = {$: 'Timeout_'};
+var $elm$core$Maybe$isJust = function (maybe) {
+	if (maybe.$ === 'Just') {
+		return true;
+	} else {
+		return false;
+	}
+};
+var $elm$core$Platform$sendToSelf = _Platform_sendToSelf;
 var $elm$core$Basics$composeR = F3(
 	function (f, g, x) {
 		return g(
@@ -7808,6 +8085,24 @@ var $author$project$QStore$Query$expectResponse = function (f) {
 					A2($elm$core$Result$map, $author$project$QStore$Query$responseFromSexpr, sRes)));
 		});
 };
+var $elm$core$List$maybeCons = F3(
+	function (f, mx, xs) {
+		var _v0 = f(mx);
+		if (_v0.$ === 'Just') {
+			var x = _v0.a;
+			return A2($elm$core$List$cons, x, xs);
+		} else {
+			return xs;
+		}
+	});
+var $elm$core$List$filterMap = F2(
+	function (f, xs) {
+		return A3(
+			$elm$core$List$foldr,
+			$elm$core$List$maybeCons(f),
+			_List_Nil,
+			xs);
+	});
 var $elm$http$Http$Request = function (a) {
 	return {$: 'Request', a: a};
 };
@@ -7888,24 +8183,6 @@ var $elm$http$Http$onEffects = F4(
 					A2($elm$http$Http$State, reqs, subs));
 			},
 			A3($elm$http$Http$updateReqs, router, cmds, state.reqs));
-	});
-var $elm$core$List$maybeCons = F3(
-	function (f, mx, xs) {
-		var _v0 = f(mx);
-		if (_v0.$ === 'Just') {
-			var x = _v0.a;
-			return A2($elm$core$List$cons, x, xs);
-		} else {
-			return xs;
-		}
-	});
-var $elm$core$List$filterMap = F2(
-	function (f, xs) {
-		return A3(
-			$elm$core$List$foldr,
-			$elm$core$List$maybeCons(f),
-			_List_Nil,
-			xs);
 	});
 var $elm$http$Http$maybeSend = F4(
 	function (router, desiredTracker, progress, _v0) {
@@ -8041,11 +8318,47 @@ var $elm$core$Tuple$second = function (_v0) {
 	var y = _v0.b;
 	return y;
 };
-var $author$project$QStore$Query$runVar = function (_v0) {
+var $author$project$QStore$Ctx$run = function (_v0) {
 	var f = _v0.a;
 	return f(0).b;
 };
+var $elm$core$Result$map2 = F3(
+	function (func, ra, rb) {
+		if (ra.$ === 'Err') {
+			var x = ra.a;
+			return $elm$core$Result$Err(x);
+		} else {
+			var a = ra.a;
+			if (rb.$ === 'Err') {
+				var x = rb.a;
+				return $elm$core$Result$Err(x);
+			} else {
+				var b = rb.a;
+				return $elm$core$Result$Ok(
+					A2(func, a, b));
+			}
+		}
+	});
+var $author$project$QStore$Query$sequenceResults = function (l) {
+	if (!l.b) {
+		return $elm$core$Result$Ok(_List_Nil);
+	} else {
+		var res = l.a;
+		var ress = l.b;
+		return A3(
+			$elm$core$Result$map2,
+			F2(
+				function (resOk, ressOk) {
+					return A2($elm$core$List$cons, resOk, ressOk);
+				}),
+			res,
+			$author$project$QStore$Query$sequenceResults(ress));
+	}
+};
 var $elm$http$Http$stringBody = _Http_pair;
+var $elm$core$List$concat = function (lists) {
+	return A3($elm$core$List$foldr, $elm$core$List$append, _List_Nil, lists);
+};
 var $elm$core$String$concat = function (strings) {
 	return A2($elm$core$String$join, '', strings);
 };
@@ -8128,10 +8441,10 @@ var $author$project$Sexpr$toString = function (sexpr) {
 };
 var $author$project$QStore$Query$query = F2(
 	function (url, _v0) {
-		var v = _v0.a;
+		var ctx = _v0.a;
 		var qf = _v0.b;
 		var _v1 = qf(
-			$author$project$QStore$Query$runVar(v));
+			$author$project$QStore$Ctx$run(ctx));
 		var q = _v1.a;
 		var proc = _v1.b;
 		return $elm$http$Http$post(
@@ -8145,7 +8458,11 @@ var $author$project$QStore$Query$query = F2(
 					function (respRes) {
 						if (respRes.$ === 'Ok') {
 							var resp = respRes.a;
-							return proc(resp);
+							return A2(
+								$elm$core$Result$map,
+								$elm$core$List$filterMap($elm$core$Basics$identity),
+								$author$project$QStore$Query$sequenceResults(
+									A2($elm$core$List$map, proc, resp)));
 						} else {
 							var err = respRes.a;
 							return $elm$core$Result$Err(
@@ -8155,21 +8472,377 @@ var $author$project$QStore$Query$query = F2(
 				url: url
 			});
 	});
-var $author$project$Main$init = function (_v0) {
-	return _Utils_Tuple2(
-		{browser: $author$project$Main$Loading, currentSong: $elm$core$Maybe$Nothing},
-		A2(
-			$elm$core$Platform$Cmd$map,
-			function (res) {
-				if (res.$ === 'Ok') {
-					var albums = res.a;
-					return $author$project$Main$ViewAlbums(albums);
-				} else {
-					return $author$project$Main$ViewAlbums(_List_Nil);
-				}
-			},
-			A2($author$project$QStore$Query$query, 'http://localhost:2718/database/query', $author$project$Album$query)));
+var $author$project$Main$AlbumsRoute = {$: 'AlbumsRoute'};
+var $author$project$Main$TracksRoute = function (a) {
+	return {$: 'TracksRoute', a: a};
 };
+var $author$project$QStore$Core$idFromInt = $author$project$QStore$Core$Id;
+var $elm$url$Url$Parser$Parser = function (a) {
+	return {$: 'Parser', a: a};
+};
+var $elm$url$Url$Parser$custom = F2(
+	function (tipe, stringToSomething) {
+		return $elm$url$Url$Parser$Parser(
+			function (_v0) {
+				var visited = _v0.visited;
+				var unvisited = _v0.unvisited;
+				var params = _v0.params;
+				var frag = _v0.frag;
+				var value = _v0.value;
+				if (!unvisited.b) {
+					return _List_Nil;
+				} else {
+					var next = unvisited.a;
+					var rest = unvisited.b;
+					var _v2 = stringToSomething(next);
+					if (_v2.$ === 'Just') {
+						var nextValue = _v2.a;
+						return _List_fromArray(
+							[
+								A5(
+								$elm$url$Url$Parser$State,
+								A2($elm$core$List$cons, next, visited),
+								rest,
+								params,
+								frag,
+								value(nextValue))
+							]);
+					} else {
+						return _List_Nil;
+					}
+				}
+			});
+	});
+var $elm$url$Url$Parser$int = A2($elm$url$Url$Parser$custom, 'NUMBER', $elm$core$String$toInt);
+var $elm$url$Url$Parser$mapState = F2(
+	function (func, _v0) {
+		var visited = _v0.visited;
+		var unvisited = _v0.unvisited;
+		var params = _v0.params;
+		var frag = _v0.frag;
+		var value = _v0.value;
+		return A5(
+			$elm$url$Url$Parser$State,
+			visited,
+			unvisited,
+			params,
+			frag,
+			func(value));
+	});
+var $elm$url$Url$Parser$map = F2(
+	function (subValue, _v0) {
+		var parseArg = _v0.a;
+		return $elm$url$Url$Parser$Parser(
+			function (_v1) {
+				var visited = _v1.visited;
+				var unvisited = _v1.unvisited;
+				var params = _v1.params;
+				var frag = _v1.frag;
+				var value = _v1.value;
+				return A2(
+					$elm$core$List$map,
+					$elm$url$Url$Parser$mapState(value),
+					parseArg(
+						A5($elm$url$Url$Parser$State, visited, unvisited, params, frag, subValue)));
+			});
+	});
+var $elm$core$List$concatMap = F2(
+	function (f, list) {
+		return $elm$core$List$concat(
+			A2($elm$core$List$map, f, list));
+	});
+var $elm$url$Url$Parser$oneOf = function (parsers) {
+	return $elm$url$Url$Parser$Parser(
+		function (state) {
+			return A2(
+				$elm$core$List$concatMap,
+				function (_v0) {
+					var parser = _v0.a;
+					return parser(state);
+				},
+				parsers);
+		});
+};
+var $elm$url$Url$Parser$s = function (str) {
+	return $elm$url$Url$Parser$Parser(
+		function (_v0) {
+			var visited = _v0.visited;
+			var unvisited = _v0.unvisited;
+			var params = _v0.params;
+			var frag = _v0.frag;
+			var value = _v0.value;
+			if (!unvisited.b) {
+				return _List_Nil;
+			} else {
+				var next = unvisited.a;
+				var rest = unvisited.b;
+				return _Utils_eq(next, str) ? _List_fromArray(
+					[
+						A5(
+						$elm$url$Url$Parser$State,
+						A2($elm$core$List$cons, next, visited),
+						rest,
+						params,
+						frag,
+						value)
+					]) : _List_Nil;
+			}
+		});
+};
+var $elm$url$Url$Parser$slash = F2(
+	function (_v0, _v1) {
+		var parseBefore = _v0.a;
+		var parseAfter = _v1.a;
+		return $elm$url$Url$Parser$Parser(
+			function (state) {
+				return A2(
+					$elm$core$List$concatMap,
+					parseAfter,
+					parseBefore(state));
+			});
+	});
+var $author$project$Main$routeParser = $elm$url$Url$Parser$oneOf(
+	_List_fromArray(
+		[
+			A2(
+			$elm$url$Url$Parser$map,
+			$author$project$Main$AlbumsRoute,
+			$elm$url$Url$Parser$s('albums')),
+			A2(
+			$elm$url$Url$Parser$map,
+			$author$project$Main$TracksRoute,
+			A2(
+				$elm$url$Url$Parser$slash,
+				$elm$url$Url$Parser$s('albums'),
+				A2($elm$url$Url$Parser$map, $author$project$QStore$Core$idFromInt, $elm$url$Url$Parser$int)))
+		]));
+var $author$project$QStore$Ctx$valueToFileHandle = function (v) {
+	if (v.$ === 'VFileHandle') {
+		var h = v.a;
+		return $elm$core$Maybe$Just(h);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$QStore$Ctx$fileHandleVar = $author$project$QStore$Ctx$Ctx(
+	function (n) {
+		return _Utils_Tuple2(
+			n + 1,
+			A2(
+				$author$project$QStore$Ctx$Var,
+				A2(
+					$elm$core$String$append,
+					'x',
+					$elm$core$String$fromInt(n)),
+				$author$project$QStore$Ctx$valueToFileHandle));
+	});
+var $author$project$QStore$Query$id = function (i) {
+	return A3(
+		$author$project$QStore$Query$QuerySlot,
+		$author$project$QStore$Query$QVal(i),
+		$author$project$QStore$Query$QVal(
+			$author$project$QStore$Core$VId(i)),
+		function (_v0) {
+			return $elm$core$Result$Ok(
+				$elm$core$Maybe$Just(_Utils_Tuple0));
+		});
+};
+var $author$project$QStore$Ctx$valueToInt = function (v) {
+	if (v.$ === 'VInt') {
+		var x = v.a;
+		return $elm$core$Maybe$Just(x);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$QStore$Ctx$intVar = $author$project$QStore$Ctx$Ctx(
+	function (n) {
+		return _Utils_Tuple2(
+			n + 1,
+			A2(
+				$author$project$QStore$Ctx$Var,
+				A2(
+					$elm$core$String$append,
+					'x',
+					$elm$core$String$fromInt(n)),
+				$author$project$QStore$Ctx$valueToInt));
+	});
+var $author$project$Album$tracksQuery = function (album) {
+	return _Utils_Tuple2(
+		A2(
+			$author$project$QStore$Ctx$app,
+			$author$project$QStore$Ctx$fileHandleVar,
+			A2(
+				$author$project$QStore$Ctx$app,
+				$author$project$QStore$Ctx$stringVar,
+				A2(
+					$author$project$QStore$Ctx$app,
+					$author$project$QStore$Ctx$idVar,
+					A2(
+						$author$project$QStore$Ctx$app,
+						$author$project$QStore$Ctx$intVar,
+						A2(
+							$author$project$QStore$Ctx$app,
+							$author$project$QStore$Ctx$idVar,
+							$author$project$QStore$Ctx$pure(
+								F5(
+									function (track, number, song, name, file) {
+										return {file: file, name: name, number: number, song: song, track: track};
+									}))))))),
+		function (ctx) {
+			return A2(
+				$author$project$QStore$Query$app,
+				$author$project$QStore$Query$true(
+					{
+						attr: $author$project$QStore$Query$string('file'),
+						id: $author$project$QStore$Query$var(ctx.song),
+						tx: $author$project$QStore$Query$wildcard,
+						value: $author$project$QStore$Query$var(ctx.file)
+					}),
+				A2(
+					$author$project$QStore$Query$app,
+					$author$project$QStore$Query$true(
+						{
+							attr: $author$project$QStore$Query$string('name'),
+							id: $author$project$QStore$Query$var(ctx.song),
+							tx: $author$project$QStore$Query$wildcard,
+							value: $author$project$QStore$Query$var(ctx.name)
+						}),
+					A2(
+						$author$project$QStore$Query$app,
+						$author$project$QStore$Query$true(
+							{
+								attr: $author$project$QStore$Query$string('song'),
+								id: $author$project$QStore$Query$var(ctx.track),
+								tx: $author$project$QStore$Query$wildcard,
+								value: $author$project$QStore$Query$var(ctx.song)
+							}),
+						A2(
+							$author$project$QStore$Query$app,
+							$author$project$QStore$Query$true(
+								{
+									attr: $author$project$QStore$Query$string('number'),
+									id: $author$project$QStore$Query$var(ctx.track),
+									tx: $author$project$QStore$Query$wildcard,
+									value: $author$project$QStore$Query$var(ctx.number)
+								}),
+							A2(
+								$author$project$QStore$Query$app,
+								$author$project$QStore$Query$true(
+									{
+										attr: $author$project$QStore$Query$string('includes track'),
+										id: $author$project$QStore$Query$id(album.id),
+										tx: $author$project$QStore$Query$wildcard,
+										value: $author$project$QStore$Query$var(ctx.track)
+									}),
+								$author$project$QStore$Query$pure(
+									F5(
+										function (a, b, c, d, e) {
+											return {
+												id: a.value,
+												number: b.value,
+												song: {file: e.value, id: c.value, name: d.value}
+											};
+										})))))));
+		});
+};
+var $author$project$Main$init = F2(
+	function (_v0, url) {
+		var _v1 = A2($elm$url$Url$Parser$parse, $author$project$Main$routeParser, url);
+		if ((_v1.$ === 'Just') && (_v1.a.$ === 'TracksRoute')) {
+			var id = _v1.a.a;
+			return _Utils_Tuple2(
+				{browser: $author$project$Main$Loading, player: $elm$core$Maybe$Nothing},
+				A2(
+					$elm$core$Platform$Cmd$map,
+					function (res) {
+						if (res.$ === 'Ok') {
+							var tracks = res.a;
+							return A2($author$project$Main$ViewTracks, tracks, id);
+						} else {
+							return A2($author$project$Main$ViewTracks, _List_Nil, id);
+						}
+					},
+					A2(
+						$author$project$QStore$Query$query,
+						A2($elm$core$String$append, $author$project$Main$dbUrl, '/query'),
+						$author$project$Album$tracksQuery(
+							{id: id, name: ''}))));
+		} else {
+			return _Utils_Tuple2(
+				{browser: $author$project$Main$Loading, player: $elm$core$Maybe$Nothing},
+				A2(
+					$elm$core$Platform$Cmd$map,
+					function (res) {
+						if (res.$ === 'Ok') {
+							var albums = res.a;
+							return $author$project$Main$ViewAlbums(albums);
+						} else {
+							return $author$project$Main$ViewAlbums(_List_Nil);
+						}
+					},
+					A2(
+						$author$project$QStore$Query$query,
+						A2($elm$core$String$append, $author$project$Main$dbUrl, '/query'),
+						$author$project$Album$query)));
+		}
+	});
+var $elm$url$Url$Builder$toQueryPair = function (_v0) {
+	var key = _v0.a;
+	var value = _v0.b;
+	return key + ('=' + value);
+};
+var $elm$url$Url$Builder$toQuery = function (parameters) {
+	if (!parameters.b) {
+		return '';
+	} else {
+		return '?' + A2(
+			$elm$core$String$join,
+			'&',
+			A2($elm$core$List$map, $elm$url$Url$Builder$toQueryPair, parameters));
+	}
+};
+var $elm$url$Url$Builder$absolute = F2(
+	function (pathSegments, parameters) {
+		return '/' + (A2($elm$core$String$join, '/', pathSegments) + $elm$url$Url$Builder$toQuery(parameters));
+	});
+var $author$project$QStore$Core$idToInt = function (_v0) {
+	var x = _v0.a;
+	return x;
+};
+var $author$project$Main$modelUrl = F2(
+	function (m, url) {
+		var _v0 = m.browser;
+		switch (_v0.$) {
+			case 'Albums':
+				return _Utils_update(
+					url,
+					{
+						path: A2(
+							$elm$url$Url$Builder$absolute,
+							_List_fromArray(
+								['albums']),
+							_List_Nil)
+					});
+			case 'Tracks':
+				var t = _v0.a;
+				return _Utils_update(
+					url,
+					{
+						path: A2(
+							$elm$url$Url$Builder$absolute,
+							_List_fromArray(
+								[
+									'albums',
+									$elm$core$String$fromInt(
+									$author$project$QStore$Core$idToInt(t.from))
+								]),
+							_List_Nil)
+					});
+			default:
+				return url;
+		}
+	});
 var $elm$core$Platform$Sub$batch = _Platform_batch;
 var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
 var $author$project$Main$subscriptions = function (_v0) {
@@ -8181,15 +8854,15 @@ var $author$project$Main$Albums = function (a) {
 var $author$project$Main$Tracks = function (a) {
 	return {$: 'Tracks', a: a};
 };
-var $author$project$Main$ViewTracks = function (a) {
-	return {$: 'ViewTracks', a: a};
-};
+var $author$project$Main$UpdatedAlbum = {$: 'UpdatedAlbum'};
+var $author$project$Main$UpdatedTrack = {$: 'UpdatedTrack'};
 var $author$project$QStore$Core$fileHandleToPath = function (_v0) {
 	var hash = _v0.a;
 	return hash;
 };
-var $elm$core$Platform$Cmd$batch = _Platform_batch;
-var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
+var $author$project$Main$filesUrl = 'http://192.168.0.26:2718/files/';
+var $author$project$Audio$Pause = {$: 'Pause'};
+var $author$project$Audio$pause = $author$project$Audio$Pause;
 var $author$project$Audio$Play = {$: 'Play'};
 var $author$project$Audio$play = $author$project$Audio$Play;
 var $author$project$Audio$audioCommand = _Platform_outgoingPort('audioCommand', $elm$core$Basics$identity);
@@ -8280,134 +8953,227 @@ var $author$project$Audio$SetSource = function (a) {
 var $author$project$Audio$setSource = function (src) {
 	return $author$project$Audio$SetSource(src);
 };
-var $author$project$QStore$Query$valueToFileHandle = function (v) {
-	if (v.$ === 'VFileHandle') {
-		var h = v.a;
-		return $elm$core$Maybe$Just(h);
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
-};
-var $author$project$QStore$Query$fileHandleVar = $author$project$QStore$Query$Var(
-	function (n) {
-		return _Utils_Tuple2(
-			n + 1,
-			A2(
-				$author$project$QStore$Query$QueryVar,
-				A2(
-					$elm$core$String$append,
-					'x',
-					$elm$core$String$fromInt(n)),
-				$author$project$QStore$Query$valueToFileHandle));
+var $author$project$QStore$Tx$Failed = {$: 'Failed'};
+var $elm$http$Http$expectBytesResponse = F2(
+	function (toMsg, toResult) {
+		return A3(
+			_Http_expect,
+			'arraybuffer',
+			_Http_toDataView,
+			A2($elm$core$Basics$composeR, toResult, toMsg));
 	});
-var $author$project$QStore$Query$id = function (i) {
-	return A3(
-		$author$project$QStore$Query$QuerySlot,
-		$author$project$QStore$Query$QVal(i),
-		$author$project$QStore$Query$QVal(
-			$author$project$QStore$Core$VId(i)),
+var $elm$http$Http$expectWhatever = function (toMsg) {
+	return A2(
+		$elm$http$Http$expectBytesResponse,
+		toMsg,
+		$elm$http$Http$resolve(
+			function (_v0) {
+				return $elm$core$Result$Ok(_Utils_Tuple0);
+			}));
+};
+var $author$project$QStore$Tx$valToSexpr = F2(
+	function (aToSexpr, v) {
+		switch (v.$) {
+			case 'Var':
+				var x = v.a;
+				return $author$project$Sexpr$Symbol(x);
+			case 'Wildcard':
+				return $author$project$Sexpr$Symbol('_');
+			default:
+				var a = v.a;
+				return aToSexpr(a);
+		}
+	});
+var $author$project$QStore$Tx$txQToSexpr = function (q) {
+	return $author$project$Sexpr$List(
+		_List_fromArray(
+			[
+				A2($author$project$QStore$Tx$valToSexpr, $author$project$QStore$Core$idToSexpr, q.id),
+				A2($author$project$QStore$Tx$valToSexpr, $author$project$Sexpr$String, q.attr),
+				A2($author$project$QStore$Tx$valToSexpr, $author$project$QStore$Core$valueToSexpr, q.value),
+				$author$project$Sexpr$Bool(q.truth)
+			]));
+};
+var $author$project$QStore$Tx$txToSexpr = function (_v0) {
+	var l = _v0.a;
+	return $author$project$Sexpr$List(
+		A2($elm$core$List$map, $author$project$QStore$Tx$txQToSexpr, l));
+};
+var $author$project$QStore$Tx$tx = F2(
+	function (url, _v0) {
+		var ctx = _v0.a;
+		var txf = _v0.b;
+		var t = txf(
+			$author$project$QStore$Ctx$run(ctx));
+		return $elm$http$Http$post(
+			{
+				body: A2(
+					$elm$http$Http$stringBody,
+					'application/sexpr',
+					$author$project$Sexpr$toString(
+						$author$project$QStore$Tx$txToSexpr(t))),
+				expect: $elm$http$Http$expectWhatever(
+					function (respRes) {
+						if (respRes.$ === 'Ok') {
+							var resp = respRes.a;
+							return $elm$core$Result$Ok(_Utils_Tuple0);
+						} else {
+							var err = respRes.a;
+							return $elm$core$Result$Err($author$project$QStore$Tx$Failed);
+						}
+					}),
+				url: url
+			});
+	});
+var $author$project$QStore$Tx$Tx = function (a) {
+	return {$: 'Tx', a: a};
+};
+var $author$project$QStore$Tx$Val = function (a) {
+	return {$: 'Val', a: a};
+};
+var $author$project$QStore$Tx$Var = function (a) {
+	return {$: 'Var', a: a};
+};
+var $author$project$QStore$Tx$Wildcard = {$: 'Wildcard'};
+var $author$project$QStore$Tx$valMap = F2(
+	function (f, v) {
+		switch (v.$) {
+			case 'Var':
+				var x = v.a;
+				return $author$project$QStore$Tx$Var(x);
+			case 'Wildcard':
+				return $author$project$QStore$Tx$Wildcard;
+			default:
+				var a = v.a;
+				return $author$project$QStore$Tx$Val(
+					f(a));
+		}
+	});
+var $author$project$QStore$Tx$assert = function (q) {
+	var _v0 = q.id;
+	var idv = _v0.a;
+	var _v1 = q.value;
+	var valuev = _v1.a;
+	var f = _v1.b;
+	var _v2 = q.attr;
+	var attrv = _v2.a;
+	return $author$project$QStore$Tx$Tx(
+		_List_fromArray(
+			[
+				{
+				attr: attrv,
+				id: idv,
+				truth: true,
+				value: A2($author$project$QStore$Tx$valMap, f, valuev)
+			}
+			]));
+};
+var $author$project$QStore$Tx$batch = function (txs) {
+	return $author$project$QStore$Tx$Tx(
+		$elm$core$List$concat(
+			A2(
+				$elm$core$List$map,
+				function (_v0) {
+					var l = _v0.a;
+					return l;
+				},
+				txs)));
+};
+var $author$project$QStore$Tx$Slot = F2(
+	function (a, b) {
+		return {$: 'Slot', a: a, b: b};
+	});
+var $author$project$QStore$Tx$id = function (x) {
+	return A2(
+		$author$project$QStore$Tx$Slot,
+		$author$project$QStore$Tx$Val(x),
+		$author$project$QStore$Core$VId);
+};
+var $author$project$QStore$Tx$retract = function (q) {
+	var _v0 = q.id;
+	var idv = _v0.a;
+	var _v1 = q.value;
+	var valuev = _v1.a;
+	var f = _v1.b;
+	var _v2 = q.attr;
+	var attrv = _v2.a;
+	return $author$project$QStore$Tx$Tx(
+		_List_fromArray(
+			[
+				{
+				attr: attrv,
+				id: idv,
+				truth: false,
+				value: A2($author$project$QStore$Tx$valMap, f, valuev)
+			}
+			]));
+};
+var $author$project$QStore$Tx$string = function (s) {
+	return A2(
+		$author$project$QStore$Tx$Slot,
+		$author$project$QStore$Tx$Val(s),
+		$author$project$QStore$Core$VString);
+};
+var $author$project$Album$update = function (a) {
+	return _Utils_Tuple2(
+		$author$project$QStore$Ctx$pure(_Utils_Tuple0),
 		function (_v0) {
-			return $elm$core$Result$Ok(
-				$elm$core$Maybe$Just(_Utils_Tuple0));
+			return $author$project$QStore$Tx$batch(
+				_List_fromArray(
+					[
+						$author$project$QStore$Tx$assert(
+						{
+							attr: $author$project$QStore$Tx$string('name'),
+							id: $author$project$QStore$Tx$id(a.is.id),
+							value: $author$project$QStore$Tx$string(a.is.name)
+						}),
+						$author$project$QStore$Tx$retract(
+						{
+							attr: $author$project$QStore$Tx$string('name'),
+							id: $author$project$QStore$Tx$id(a.was.id),
+							value: $author$project$QStore$Tx$string(a.was.name)
+						})
+					]));
 		});
 };
-var $author$project$QStore$Query$valueToInt = function (v) {
-	if (v.$ === 'VInt') {
-		var x = v.a;
-		return $elm$core$Maybe$Just(x);
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
+var $author$project$QStore$Tx$int = function (i) {
+	return A2(
+		$author$project$QStore$Tx$Slot,
+		$author$project$QStore$Tx$Val(i),
+		$author$project$QStore$Core$VInt);
 };
-var $author$project$QStore$Query$intVar = $author$project$QStore$Query$Var(
-	function (n) {
-		return _Utils_Tuple2(
-			n + 1,
-			A2(
-				$author$project$QStore$Query$QueryVar,
-				A2(
-					$elm$core$String$append,
-					'x',
-					$elm$core$String$fromInt(n)),
-				$author$project$QStore$Query$valueToInt));
-	});
-var $author$project$Album$tracksQuery = function (album) {
+var $author$project$Album$updateTrack = function (track) {
 	return _Utils_Tuple2(
-		A2(
-			$author$project$QStore$Query$varApp,
-			$author$project$QStore$Query$fileHandleVar,
-			A2(
-				$author$project$QStore$Query$varApp,
-				$author$project$QStore$Query$stringVar,
-				A2(
-					$author$project$QStore$Query$varApp,
-					$author$project$QStore$Query$idVar,
-					A2(
-						$author$project$QStore$Query$varApp,
-						$author$project$QStore$Query$intVar,
-						A2(
-							$author$project$QStore$Query$varApp,
-							$author$project$QStore$Query$idVar,
-							$author$project$QStore$Query$varPure(
-								F5(
-									function (track, number, song, name, file) {
-										return {file: file, name: name, number: number, song: song, track: track};
-									}))))))),
-		function (ctx) {
-			return A2(
-				$author$project$QStore$Query$app,
-				$author$project$QStore$Query$true(
-					{
-						attr: $author$project$QStore$Query$string('file'),
-						id: $author$project$QStore$Query$var(ctx.song),
-						tx: $author$project$QStore$Query$wildcard,
-						value: $author$project$QStore$Query$var(ctx.file)
-					}),
-				A2(
-					$author$project$QStore$Query$app,
-					$author$project$QStore$Query$true(
+		$author$project$QStore$Ctx$pure(_Utils_Tuple0),
+		function (_v0) {
+			return $author$project$QStore$Tx$batch(
+				_List_fromArray(
+					[
+						$author$project$QStore$Tx$assert(
 						{
-							attr: $author$project$QStore$Query$string('name'),
-							id: $author$project$QStore$Query$var(ctx.song),
-							tx: $author$project$QStore$Query$wildcard,
-							value: $author$project$QStore$Query$var(ctx.name)
+							attr: $author$project$QStore$Tx$string('number'),
+							id: $author$project$QStore$Tx$id(track.is.id),
+							value: $author$project$QStore$Tx$int(track.is.number)
 						}),
-					A2(
-						$author$project$QStore$Query$app,
-						$author$project$QStore$Query$true(
-							{
-								attr: $author$project$QStore$Query$string('song'),
-								id: $author$project$QStore$Query$var(ctx.track),
-								tx: $author$project$QStore$Query$wildcard,
-								value: $author$project$QStore$Query$var(ctx.song)
-							}),
-						A2(
-							$author$project$QStore$Query$app,
-							$author$project$QStore$Query$true(
-								{
-									attr: $author$project$QStore$Query$string('number'),
-									id: $author$project$QStore$Query$var(ctx.track),
-									tx: $author$project$QStore$Query$wildcard,
-									value: $author$project$QStore$Query$var(ctx.number)
-								}),
-							A2(
-								$author$project$QStore$Query$app,
-								$author$project$QStore$Query$true(
-									{
-										attr: $author$project$QStore$Query$string('includes track'),
-										id: $author$project$QStore$Query$id(album.id),
-										tx: $author$project$QStore$Query$wildcard,
-										value: $author$project$QStore$Query$var(ctx.track)
-									}),
-								$author$project$QStore$Query$pure(
-									F5(
-										function (a, b, c, d, e) {
-											return {
-												id: a.value,
-												number: b.value,
-												song: {file: e.value, id: c.value, name: d.value}
-											};
-										})))))));
+						$author$project$QStore$Tx$retract(
+						{
+							attr: $author$project$QStore$Tx$string('number'),
+							id: $author$project$QStore$Tx$id(track.was.id),
+							value: $author$project$QStore$Tx$int(track.was.number)
+						}),
+						$author$project$QStore$Tx$assert(
+						{
+							attr: $author$project$QStore$Tx$string('name'),
+							id: $author$project$QStore$Tx$id(track.is.song.id),
+							value: $author$project$QStore$Tx$string(track.is.song.name)
+						}),
+						$author$project$QStore$Tx$retract(
+						{
+							attr: $author$project$QStore$Tx$string('name'),
+							id: $author$project$QStore$Tx$id(track.was.song.id),
+							value: $author$project$QStore$Tx$string(track.was.song.name)
+						})
+					]));
 		});
 };
 var $author$project$Main$update = F2(
@@ -8434,22 +9200,24 @@ var $author$project$Main$update = F2(
 						function (res) {
 							if (res.$ === 'Ok') {
 								var tracks = res.a;
-								return $author$project$Main$ViewTracks(tracks);
+								return A2($author$project$Main$ViewTracks, tracks, album.id);
 							} else {
-								return $author$project$Main$ViewTracks(_List_Nil);
+								return A2($author$project$Main$ViewTracks, _List_Nil, album.id);
 							}
 						},
 						A2(
 							$author$project$QStore$Query$query,
-							'http://localhost:2718/database/query',
+							A2($elm$core$String$append, $author$project$Main$dbUrl, '/query'),
 							$author$project$Album$tracksQuery(album))));
 			case 'ViewTracks':
 				var tracks = msg.a;
+				var id = msg.b;
 				return _Utils_Tuple2(
 					_Utils_update(
 						m,
 						{
-							browser: $author$project$Main$Tracks(tracks)
+							browser: $author$project$Main$Tracks(
+								{editing: $elm$core$Maybe$Nothing, from: id, tracks: tracks})
 						}),
 					$elm$core$Platform$Cmd$none);
 			case 'PlaySong':
@@ -8458,7 +9226,8 @@ var $author$project$Main$update = F2(
 					_Utils_update(
 						m,
 						{
-							currentSong: $elm$core$Maybe$Just(song)
+							player: $elm$core$Maybe$Just(
+								{playing: true, song: song})
 						}),
 					$author$project$Audio$run(
 						$author$project$Audio$sequence(
@@ -8467,7 +9236,7 @@ var $author$project$Main$update = F2(
 									$author$project$Audio$setSource(
 									A2(
 										$elm$core$String$append,
-										'http://localhost:2718/files/',
+										$author$project$Main$filesUrl,
 										$author$project$QStore$Core$fileHandleToPath(song.file))),
 									$author$project$Audio$play
 								]))));
@@ -8491,10 +9260,31 @@ var $author$project$Main$update = F2(
 				} else {
 					return _Utils_Tuple2(m, $elm$core$Platform$Cmd$none);
 				}
-			default:
+			case 'EditTrack':
+				var track = msg.a;
 				var _v3 = m.browser;
-				if (_v3.$ === 'Albums') {
-					var a = _v3.a;
+				if (_v3.$ === 'Tracks') {
+					var t = _v3.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							m,
+							{
+								browser: $author$project$Main$Tracks(
+									_Utils_update(
+										t,
+										{
+											editing: $elm$core$Maybe$Just(track)
+										}))
+							}),
+						$elm$core$Platform$Cmd$none);
+				} else {
+					return _Utils_Tuple2(m, $elm$core$Platform$Cmd$none);
+				}
+			case 'UpdateAlbum':
+				var album = msg.a;
+				var _v4 = m.browser;
+				if (_v4.$ === 'Albums') {
+					var a = _v4.a;
 					return _Utils_Tuple2(
 						_Utils_update(
 							m,
@@ -8504,9 +9294,134 @@ var $author$project$Main$update = F2(
 										a,
 										{editing: $elm$core$Maybe$Nothing}))
 							}),
-						$elm$core$Platform$Cmd$none);
+						A2(
+							$elm$core$Platform$Cmd$map,
+							function (res) {
+								if (res.$ === 'Ok') {
+									return $author$project$Main$UpdatedAlbum;
+								} else {
+									return $author$project$Main$UpdatedAlbum;
+								}
+							},
+							A2(
+								$author$project$QStore$Tx$tx,
+								A2($elm$core$String$append, $author$project$Main$dbUrl, '/transact'),
+								$author$project$Album$update(album))));
 				} else {
 					return _Utils_Tuple2(m, $elm$core$Platform$Cmd$none);
+				}
+			case 'UpdateTrack':
+				var track = msg.a;
+				var _v6 = m.browser;
+				if (_v6.$ === 'Tracks') {
+					var t = _v6.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							m,
+							{
+								browser: $author$project$Main$Tracks(
+									_Utils_update(
+										t,
+										{editing: $elm$core$Maybe$Nothing}))
+							}),
+						A2(
+							$elm$core$Platform$Cmd$map,
+							function (res) {
+								return $author$project$Main$UpdatedTrack;
+							},
+							A2(
+								$author$project$QStore$Tx$tx,
+								A2($elm$core$String$append, $author$project$Main$dbUrl, '/transact'),
+								$author$project$Album$updateTrack(track))));
+				} else {
+					return _Utils_Tuple2(m, $elm$core$Platform$Cmd$none);
+				}
+			case 'UpdatedAlbum':
+				return _Utils_Tuple2(m, $elm$core$Platform$Cmd$none);
+			case 'UpdatedTrack':
+				return _Utils_Tuple2(m, $elm$core$Platform$Cmd$none);
+			case 'Play':
+				var _v7 = m.player;
+				if (_v7.$ === 'Just') {
+					var p = _v7.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							m,
+							{
+								player: $elm$core$Maybe$Just(
+									_Utils_update(
+										p,
+										{playing: true}))
+							}),
+						$author$project$Audio$run($author$project$Audio$play));
+				} else {
+					return _Utils_Tuple2(m, $elm$core$Platform$Cmd$none);
+				}
+			case 'Pause':
+				var _v8 = m.player;
+				if (_v8.$ === 'Just') {
+					var p = _v8.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							m,
+							{
+								player: $elm$core$Maybe$Just(
+									_Utils_update(
+										p,
+										{playing: false}))
+							}),
+						$author$project$Audio$run($author$project$Audio$pause));
+				} else {
+					return _Utils_Tuple2(m, $elm$core$Platform$Cmd$none);
+				}
+			default:
+				var u = msg.a;
+				var _v9 = A2($elm$url$Url$Parser$parse, $author$project$Main$routeParser, u);
+				if (_v9.$ === 'Nothing') {
+					return _Utils_Tuple2(m, $elm$core$Platform$Cmd$none);
+				} else {
+					if (_v9.a.$ === 'AlbumsRoute') {
+						var _v10 = _v9.a;
+						return _Utils_Tuple2(
+							_Utils_update(
+								m,
+								{browser: $author$project$Main$Loading}),
+							A2(
+								$elm$core$Platform$Cmd$map,
+								function (res) {
+									if (res.$ === 'Ok') {
+										var albums = res.a;
+										return $author$project$Main$ViewAlbums(albums);
+									} else {
+										return $author$project$Main$ViewAlbums(_List_Nil);
+									}
+								},
+								A2(
+									$author$project$QStore$Query$query,
+									A2($elm$core$String$append, $author$project$Main$dbUrl, '/query'),
+									$author$project$Album$query)));
+					} else {
+						var id = _v9.a.a;
+						return _Utils_Tuple2(
+							_Utils_update(
+								m,
+								{browser: $author$project$Main$Loading}),
+							A2(
+								$elm$core$Platform$Cmd$map,
+								function (res) {
+									if (res.$ === 'Ok') {
+										var tracks = res.a;
+										return A2($author$project$Main$ViewTracks, tracks, id);
+									} else {
+										return A2($author$project$Main$ViewTracks, _List_Nil, id);
+									}
+								},
+								A2(
+									$author$project$QStore$Query$query,
+									A2($elm$core$String$append, $author$project$Main$dbUrl, '/query'),
+									$author$project$Album$tracksQuery(
+										{id: id, name: ''}))));
+					}
 				}
 		}
 	});
@@ -9314,6 +10229,7 @@ var $rtfeldman$elm_css$Html$Styled$div = $rtfeldman$elm_css$Html$Styled$node('di
 var $rtfeldman$elm_css$Css$flexDirection = $rtfeldman$elm_css$Css$prop1('flex-direction');
 var $rtfeldman$elm_css$Css$flexGrow = $rtfeldman$elm_css$Css$prop1('flex-grow');
 var $rtfeldman$elm_css$Css$height = $rtfeldman$elm_css$Css$prop1('height');
+var $rtfeldman$elm_css$Css$hidden = {borderStyle: $rtfeldman$elm_css$Css$Structure$Compatible, overflow: $rtfeldman$elm_css$Css$Structure$Compatible, value: 'hidden', visibility: $rtfeldman$elm_css$Css$Structure$Compatible};
 var $rtfeldman$elm_css$Css$Preprocess$ApplyStyles = function (a) {
 	return {$: 'ApplyStyles', a: a};
 };
@@ -9436,6 +10352,7 @@ var $rtfeldman$elm_css$Css$num = function (val) {
 		value: $elm$core$String$fromFloat(val)
 	};
 };
+var $rtfeldman$elm_css$Css$overflow = $rtfeldman$elm_css$Css$prop1('overflow');
 var $rtfeldman$elm_css$VirtualDom$Styled$Attribute = F3(
 	function (a, b, c) {
 		return {$: 'Attribute', a: a, b: b, c: c};
@@ -9460,11 +10377,6 @@ var $elm$core$List$any = F2(
 				}
 			}
 		}
-	});
-var $elm$core$Basics$composeL = F3(
-	function (g, f, x) {
-		return g(
-			f(x));
 	});
 var $elm$core$List$all = F2(
 	function (isOkay, list) {
@@ -9827,11 +10739,6 @@ var $rtfeldman$elm_css$Css$Structure$Output$prettyPrint = function (_v0) {
 	var declarations = _v0.declarations;
 	return $rtfeldman$elm_css$Css$Structure$Output$charsetToString(charset) + (A3($rtfeldman$elm_css$Css$String$mapJoin, $rtfeldman$elm_css$Css$Structure$Output$importToString, '\n', imports) + (A3($rtfeldman$elm_css$Css$String$mapJoin, $rtfeldman$elm_css$Css$Structure$Output$namespaceToString, '\n', namespaces) + (A3($rtfeldman$elm_css$Css$String$mapJoin, $rtfeldman$elm_css$Css$Structure$Output$prettyPrintDeclaration, '\n', declarations) + '')));
 };
-var $elm$core$List$concatMap = F2(
-	function (f, list) {
-		return $elm$core$List$concat(
-			A2($elm$core$List$map, f, list));
-	});
 var $rtfeldman$elm_css$Css$Structure$CounterStyle = function (a) {
 	return {$: 'CounterStyle', a: a};
 };
@@ -10933,11 +11840,17 @@ var $rtfeldman$elm_css$Css$vh = A2($rtfeldman$elm_css$Css$Internal$lengthConvert
 var $author$project$Main$EditAlbum = function (a) {
 	return {$: 'EditAlbum', a: a};
 };
+var $author$project$Main$EditTrack = function (a) {
+	return {$: 'EditTrack', a: a};
+};
 var $author$project$Main$PlaySong = function (a) {
 	return {$: 'PlaySong', a: a};
 };
 var $author$project$Main$UpdateAlbum = function (a) {
 	return {$: 'UpdateAlbum', a: a};
+};
+var $author$project$Main$UpdateTrack = function (a) {
+	return {$: 'UpdateTrack', a: a};
 };
 var $author$project$Main$ViewAlbum = function (a) {
 	return {$: 'ViewAlbum', a: a};
@@ -10947,11 +11860,14 @@ var $rtfeldman$elm_css$Css$prop3 = F4(
 		return A2($rtfeldman$elm_css$Css$property, key, argA.value + (' ' + (argB.value + (' ' + argC.value))));
 	});
 var $rtfeldman$elm_css$Css$border3 = $rtfeldman$elm_css$Css$prop3('border');
+var $rtfeldman$elm_css$Css$ellipsis = {textOverflow: $rtfeldman$elm_css$Css$Structure$Compatible, value: 'ellipsis'};
 var $rtfeldman$elm_css$Css$EmUnits = {$: 'EmUnits'};
 var $rtfeldman$elm_css$Css$em = A2($rtfeldman$elm_css$Css$Internal$lengthConverter, $rtfeldman$elm_css$Css$EmUnits, 'em');
 var $rtfeldman$elm_css$Css$fontSize = $rtfeldman$elm_css$Css$prop1('font-size');
 var $rtfeldman$elm_css$Html$Styled$form = $rtfeldman$elm_css$Html$Styled$node('form');
 var $rtfeldman$elm_css$Html$Styled$input = $rtfeldman$elm_css$Html$Styled$node('input');
+var $rtfeldman$elm_css$Css$left = $rtfeldman$elm_css$Css$prop1('left');
+var $rtfeldman$elm_css$Css$noWrap = {flexDirectionOrWrap: $rtfeldman$elm_css$Css$Structure$Compatible, flexWrap: $rtfeldman$elm_css$Css$Structure$Compatible, value: 'nowrap', whiteSpace: $rtfeldman$elm_css$Css$Structure$Compatible};
 var $rtfeldman$elm_css$Html$Styled$Events$alwaysStop = function (x) {
 	return _Utils_Tuple2(x, true);
 };
@@ -11041,6 +11957,15 @@ var $rtfeldman$elm_css$Css$rgb = F3(
 		};
 	});
 var $rtfeldman$elm_css$Css$solid = {borderStyle: $rtfeldman$elm_css$Css$Structure$Compatible, textDecorationStyle: $rtfeldman$elm_css$Css$Structure$Compatible, value: 'solid'};
+var $rtfeldman$elm_css$VirtualDom$Styled$Unstyled = function (a) {
+	return {$: 'Unstyled', a: a};
+};
+var $rtfeldman$elm_css$VirtualDom$Styled$text = function (str) {
+	return $rtfeldman$elm_css$VirtualDom$Styled$Unstyled(
+		$elm$virtual_dom$VirtualDom$text(str));
+};
+var $rtfeldman$elm_css$Html$Styled$text = $rtfeldman$elm_css$VirtualDom$Styled$text;
+var $rtfeldman$elm_css$Css$textOverflow = $rtfeldman$elm_css$Css$prop1('text-overflow');
 var $rtfeldman$elm_css$VirtualDom$Styled$property = F2(
 	function (key, value) {
 		return A3(
@@ -11058,7 +11983,79 @@ var $rtfeldman$elm_css$Html$Styled$Attributes$stringProperty = F2(
 	});
 var $rtfeldman$elm_css$Html$Styled$Attributes$type_ = $rtfeldman$elm_css$Html$Styled$Attributes$stringProperty('type');
 var $rtfeldman$elm_css$Html$Styled$Attributes$value = $rtfeldman$elm_css$Html$Styled$Attributes$stringProperty('value');
+var $rtfeldman$elm_css$Css$whiteSpace = $rtfeldman$elm_css$Css$prop1('white-space');
 var $rtfeldman$elm_css$Css$width = $rtfeldman$elm_css$Css$prop1('width');
+var $author$project$Album$editingTrackView = F2(
+	function (cfg, track) {
+		return A4(
+			$rtfeldman$elm_css$Html$Styled$styled,
+			$rtfeldman$elm_css$Html$Styled$form,
+			_List_fromArray(
+				[
+					A3(
+					$rtfeldman$elm_css$Css$border3,
+					$rtfeldman$elm_css$Css$px(2),
+					$rtfeldman$elm_css$Css$solid,
+					A3($rtfeldman$elm_css$Css$rgb, 0, 0, 0)),
+					$rtfeldman$elm_css$Css$fontSize(
+					$rtfeldman$elm_css$Css$em(1.5)),
+					$rtfeldman$elm_css$Css$displayFlex,
+					$rtfeldman$elm_css$Css$flexDirection($rtfeldman$elm_css$Css$row),
+					$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center)
+				]),
+			_List_fromArray(
+				[
+					$rtfeldman$elm_css$Html$Styled$Events$onSubmit(cfg.submitEdit)
+				]),
+			_List_fromArray(
+				[
+					A4(
+					$rtfeldman$elm_css$Html$Styled$styled,
+					$rtfeldman$elm_css$Html$Styled$div,
+					_List_Nil,
+					_List_Nil,
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Html$Styled$text(
+							A2(
+								$elm$core$String$append,
+								$elm$core$String$fromInt(track.number),
+								'.'))
+						])),
+					A4(
+					$rtfeldman$elm_css$Html$Styled$styled,
+					$rtfeldman$elm_css$Html$Styled$input,
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Css$flexGrow(
+							$rtfeldman$elm_css$Css$num(1)),
+							$rtfeldman$elm_css$Css$width(
+							$rtfeldman$elm_css$Css$em(20)),
+							$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$left),
+							$rtfeldman$elm_css$Css$textOverflow($rtfeldman$elm_css$Css$ellipsis),
+							$rtfeldman$elm_css$Css$whiteSpace($rtfeldman$elm_css$Css$noWrap),
+							$rtfeldman$elm_css$Css$overflow($rtfeldman$elm_css$Css$hidden)
+						]),
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Html$Styled$Attributes$type_('text'),
+							$rtfeldman$elm_css$Html$Styled$Attributes$value(track.song.name),
+							$rtfeldman$elm_css$Html$Styled$Events$onInput(
+							function (n) {
+								var song = track.song;
+								return cfg.updateEdit(
+									_Utils_update(
+										track,
+										{
+											song: _Utils_update(
+												song,
+												{name: n})
+										}));
+							})
+						]),
+					_List_Nil)
+				]));
+	});
 var $author$project$Album$editingView = F2(
 	function (cfg, album) {
 		return A4(
@@ -11073,6 +12070,8 @@ var $author$project$Album$editingView = F2(
 					A3($rtfeldman$elm_css$Css$rgb, 0, 0, 0)),
 					$rtfeldman$elm_css$Css$width(
 					$rtfeldman$elm_css$Css$em(20)),
+					$rtfeldman$elm_css$Css$height(
+					$rtfeldman$elm_css$Css$em(1.5)),
 					$rtfeldman$elm_css$Css$displayFlex,
 					$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center),
 					$rtfeldman$elm_css$Css$fontSize(
@@ -11109,14 +12108,7 @@ var $author$project$QStore$Core$idEq = F2(
 		var b = _v1.a;
 		return _Utils_eq(a, b);
 	});
-var $rtfeldman$elm_css$VirtualDom$Styled$Unstyled = function (a) {
-	return {$: 'Unstyled', a: a};
-};
-var $rtfeldman$elm_css$VirtualDom$Styled$text = function (str) {
-	return $rtfeldman$elm_css$VirtualDom$Styled$Unstyled(
-		$elm$virtual_dom$VirtualDom$text(str));
-};
-var $rtfeldman$elm_css$Html$Styled$text = $rtfeldman$elm_css$VirtualDom$Styled$text;
+var $rtfeldman$elm_css$Css$scroll = {backgroundAttachment: $rtfeldman$elm_css$Css$Structure$Compatible, blockAxisOverflow: $rtfeldman$elm_css$Css$Structure$Compatible, inlineAxisOverflow: $rtfeldman$elm_css$Css$Structure$Compatible, overflow: $rtfeldman$elm_css$Css$Structure$Compatible, scroll: $rtfeldman$elm_css$Css$Structure$Compatible, value: 'scroll'};
 var $elm$virtual_dom$VirtualDom$Normal = function (a) {
 	return {$: 'Normal', a: a};
 };
@@ -11147,6 +12139,8 @@ var $author$project$Album$view = F2(
 					A3($rtfeldman$elm_css$Css$rgb, 0, 0, 0)),
 					$rtfeldman$elm_css$Css$width(
 					$rtfeldman$elm_css$Css$em(20)),
+					$rtfeldman$elm_css$Css$height(
+					$rtfeldman$elm_css$Css$em(1.5)),
 					$rtfeldman$elm_css$Css$displayFlex,
 					$rtfeldman$elm_css$Css$flexDirection($rtfeldman$elm_css$Css$row),
 					$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center),
@@ -11192,6 +12186,7 @@ var $author$project$Album$view = F2(
 						]))
 				]));
 	});
+var $rtfeldman$elm_css$Html$Styled$Attributes$title = $rtfeldman$elm_css$Html$Styled$Attributes$stringProperty('title');
 var $author$project$Album$viewTrack = F2(
 	function (cfg, track) {
 		return A4(
@@ -11204,18 +12199,13 @@ var $author$project$Album$viewTrack = F2(
 					$rtfeldman$elm_css$Css$px(2),
 					$rtfeldman$elm_css$Css$solid,
 					A3($rtfeldman$elm_css$Css$rgb, 0, 0, 0)),
-					$rtfeldman$elm_css$Css$width(
-					$rtfeldman$elm_css$Css$em(20)),
 					$rtfeldman$elm_css$Css$fontSize(
 					$rtfeldman$elm_css$Css$em(1.5)),
 					$rtfeldman$elm_css$Css$displayFlex,
 					$rtfeldman$elm_css$Css$flexDirection($rtfeldman$elm_css$Css$row),
 					$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center)
 				]),
-			_List_fromArray(
-				[
-					$rtfeldman$elm_css$Html$Styled$Events$onClick(cfg.playSong)
-				]),
+			_List_Nil,
 			_List_fromArray(
 				[
 					A4(
@@ -11238,13 +12228,37 @@ var $author$project$Album$viewTrack = F2(
 						[
 							$rtfeldman$elm_css$Css$flexGrow(
 							$rtfeldman$elm_css$Css$num(1)),
-							$rtfeldman$elm_css$Css$displayFlex,
-							$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center)
+							$rtfeldman$elm_css$Css$width(
+							$rtfeldman$elm_css$Css$em(20)),
+							$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$left),
+							$rtfeldman$elm_css$Css$textOverflow($rtfeldman$elm_css$Css$ellipsis),
+							$rtfeldman$elm_css$Css$whiteSpace($rtfeldman$elm_css$Css$noWrap),
+							$rtfeldman$elm_css$Css$overflow($rtfeldman$elm_css$Css$hidden)
 						]),
-					_List_Nil,
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Html$Styled$Attributes$title(track.song.name),
+							$rtfeldman$elm_css$Html$Styled$Events$onClick(cfg.playSong)
+						]),
 					_List_fromArray(
 						[
 							$rtfeldman$elm_css$Html$Styled$text(track.song.name)
+						])),
+					A4(
+					$rtfeldman$elm_css$Html$Styled$styled,
+					$rtfeldman$elm_css$Html$Styled$div,
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Css$displayFlex,
+							$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center)
+						]),
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Html$Styled$Events$onClick(cfg.edit)
+						]),
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Html$Styled$text('edit')
 						]))
 				]));
 	});
@@ -11255,7 +12269,10 @@ var $author$project$Main$viewBrowser = function (b) {
 			return A4(
 				$rtfeldman$elm_css$Html$Styled$styled,
 				$rtfeldman$elm_css$Html$Styled$div,
-				_List_Nil,
+				_List_fromArray(
+					[
+						$rtfeldman$elm_css$Css$overflow($rtfeldman$elm_css$Css$hidden)
+					]),
 				_List_Nil,
 				A2(
 					$elm$core$List$map,
@@ -11274,7 +12291,8 @@ var $author$project$Main$viewBrowser = function (b) {
 							return A2($author$project$QStore$Core$idEq, editingAlbum.id, album.id) ? A2(
 								$author$project$Album$editingView,
 								{
-									submitEdit: $author$project$Main$UpdateAlbum(album),
+									submitEdit: $author$project$Main$UpdateAlbum(
+										{is: editingAlbum, was: album}),
 									updateEdit: $author$project$Main$EditAlbum
 								},
 								editingAlbum) : A2(
@@ -11288,32 +12306,65 @@ var $author$project$Main$viewBrowser = function (b) {
 					},
 					a.albums));
 		case 'Tracks':
-			var tracks = b.a;
+			var t = b.a;
 			return A4(
 				$rtfeldman$elm_css$Html$Styled$styled,
 				$rtfeldman$elm_css$Html$Styled$div,
-				_List_Nil,
+				_List_fromArray(
+					[
+						$rtfeldman$elm_css$Css$displayFlex,
+						$rtfeldman$elm_css$Css$flexDirection($rtfeldman$elm_css$Css$column),
+						$rtfeldman$elm_css$Css$overflow($rtfeldman$elm_css$Css$scroll)
+					]),
 				_List_Nil,
 				A2(
 					$elm$core$List$map,
 					function (track) {
-						return A2(
-							$author$project$Album$viewTrack,
-							{
-								playSong: $author$project$Main$PlaySong(track.song)
-							},
-							track);
+						var _v2 = t.editing;
+						if (_v2.$ === 'Nothing') {
+							return A2(
+								$author$project$Album$viewTrack,
+								{
+									edit: $author$project$Main$EditTrack(track),
+									playSong: $author$project$Main$PlaySong(track.song)
+								},
+								track);
+						} else {
+							var editedTrack = _v2.a;
+							return A2($author$project$QStore$Core$idEq, editedTrack.id, track.id) ? A2(
+								$author$project$Album$editingTrackView,
+								{
+									submitEdit: $author$project$Main$UpdateTrack(
+										{is: editedTrack, was: track}),
+									updateEdit: $author$project$Main$EditTrack
+								},
+								editedTrack) : A2(
+								$author$project$Album$viewTrack,
+								{
+									edit: $author$project$Main$EditTrack(track),
+									playSong: $author$project$Main$PlaySong(track.song)
+								},
+								track);
+						}
 					},
-					tracks));
+					t.tracks));
 		default:
 			return $rtfeldman$elm_css$Html$Styled$text('Loading...');
 	}
 };
-var $rtfeldman$elm_css$Css$hidden = {borderStyle: $rtfeldman$elm_css$Css$Structure$Compatible, overflow: $rtfeldman$elm_css$Css$Structure$Compatible, value: 'hidden', visibility: $rtfeldman$elm_css$Css$Structure$Compatible};
+var $author$project$Main$Pause = {$: 'Pause'};
+var $author$project$Main$Play = {$: 'Play'};
+var $rtfeldman$elm_css$Css$textAlign = function (fn) {
+	return A3(
+		$rtfeldman$elm_css$Css$Internal$getOverloadedProperty,
+		'textAlign',
+		'text-align',
+		fn($rtfeldman$elm_css$Css$Internal$lengthForOverloadedProperty));
+};
 var $rtfeldman$elm_css$Css$visibility = $rtfeldman$elm_css$Css$prop1('visibility');
 var $author$project$Main$viewPlayer = function (m) {
 	if (m.$ === 'Just') {
-		var song = m.a;
+		var p = m.a;
 		return A4(
 			$rtfeldman$elm_css$Html$Styled$styled,
 			$rtfeldman$elm_css$Html$Styled$div,
@@ -11321,33 +12372,64 @@ var $author$project$Main$viewPlayer = function (m) {
 				[
 					$rtfeldman$elm_css$Css$displayFlex,
 					$rtfeldman$elm_css$Css$flexDirection($rtfeldman$elm_css$Css$row),
-					$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center),
 					$rtfeldman$elm_css$Css$fontSize(
 					$rtfeldman$elm_css$Css$em(2))
 				]),
 			_List_Nil,
 			_List_fromArray(
 				[
-					A4(
-					$rtfeldman$elm_css$Html$Styled$styled,
-					$rtfeldman$elm_css$Html$Styled$div,
-					_List_fromArray(
-						[
-							$rtfeldman$elm_css$Css$flexGrow(
-							$rtfeldman$elm_css$Css$num(1)),
-							A3(
-							$rtfeldman$elm_css$Css$border3,
-							$rtfeldman$elm_css$Css$px(2),
-							$rtfeldman$elm_css$Css$solid,
-							A3($rtfeldman$elm_css$Css$rgb, 0, 0, 0)),
-							$rtfeldman$elm_css$Css$displayFlex,
-							$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center)
-						]),
-					_List_Nil,
-					_List_fromArray(
-						[
-							$rtfeldman$elm_css$Html$Styled$text('⏵')
-						])),
+					function () {
+					var _v1 = p.playing;
+					if (_v1) {
+						return A4(
+							$rtfeldman$elm_css$Html$Styled$styled,
+							$rtfeldman$elm_css$Html$Styled$div,
+							_List_fromArray(
+								[
+									$rtfeldman$elm_css$Css$flexGrow(
+									$rtfeldman$elm_css$Css$num(1)),
+									A3(
+									$rtfeldman$elm_css$Css$border3,
+									$rtfeldman$elm_css$Css$px(2),
+									$rtfeldman$elm_css$Css$solid,
+									A3($rtfeldman$elm_css$Css$rgb, 0, 0, 0)),
+									$rtfeldman$elm_css$Css$displayFlex,
+									$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center)
+								]),
+							_List_fromArray(
+								[
+									$rtfeldman$elm_css$Html$Styled$Events$onClick($author$project$Main$Pause)
+								]),
+							_List_fromArray(
+								[
+									$rtfeldman$elm_css$Html$Styled$text('⏸')
+								]));
+					} else {
+						return A4(
+							$rtfeldman$elm_css$Html$Styled$styled,
+							$rtfeldman$elm_css$Html$Styled$div,
+							_List_fromArray(
+								[
+									$rtfeldman$elm_css$Css$flexGrow(
+									$rtfeldman$elm_css$Css$num(1)),
+									A3(
+									$rtfeldman$elm_css$Css$border3,
+									$rtfeldman$elm_css$Css$px(2),
+									$rtfeldman$elm_css$Css$solid,
+									A3($rtfeldman$elm_css$Css$rgb, 0, 0, 0)),
+									$rtfeldman$elm_css$Css$displayFlex,
+									$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center)
+								]),
+							_List_fromArray(
+								[
+									$rtfeldman$elm_css$Html$Styled$Events$onClick($author$project$Main$Play)
+								]),
+							_List_fromArray(
+								[
+									$rtfeldman$elm_css$Html$Styled$text('⏵')
+								]));
+					}
+				}(),
 					A4(
 					$rtfeldman$elm_css$Html$Styled$styled,
 					$rtfeldman$elm_css$Html$Styled$div,
@@ -11360,13 +12442,18 @@ var $author$project$Main$viewPlayer = function (m) {
 							A3($rtfeldman$elm_css$Css$rgb, 0, 0, 0)),
 							$rtfeldman$elm_css$Css$width(
 							$rtfeldman$elm_css$Css$em(20)),
-							$rtfeldman$elm_css$Css$displayFlex,
-							$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center)
+							$rtfeldman$elm_css$Css$textAlign($rtfeldman$elm_css$Css$center),
+							$rtfeldman$elm_css$Css$textOverflow($rtfeldman$elm_css$Css$ellipsis),
+							$rtfeldman$elm_css$Css$whiteSpace($rtfeldman$elm_css$Css$noWrap),
+							$rtfeldman$elm_css$Css$overflow($rtfeldman$elm_css$Css$hidden)
 						]),
-					_List_Nil,
 					_List_fromArray(
 						[
-							$rtfeldman$elm_css$Html$Styled$text(song.name)
+							$rtfeldman$elm_css$Html$Styled$Attributes$title(p.song.name)
+						]),
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Html$Styled$text(p.song.name)
 						])),
 					A4(
 					$rtfeldman$elm_css$Html$Styled$styled,
@@ -11412,7 +12499,8 @@ var $author$project$Main$viewModel = function (m) {
 				$rtfeldman$elm_css$Css$width(
 				$rtfeldman$elm_css$Css$vw(100)),
 				$rtfeldman$elm_css$Css$height(
-				$rtfeldman$elm_css$Css$vh(100))
+				$rtfeldman$elm_css$Css$vh(100)),
+				$rtfeldman$elm_css$Css$overflow($rtfeldman$elm_css$Css$hidden)
 			]),
 		_List_Nil,
 		_List_fromArray(
@@ -11426,7 +12514,8 @@ var $author$project$Main$viewModel = function (m) {
 						$rtfeldman$elm_css$Css$flexDirection($rtfeldman$elm_css$Css$row),
 						$rtfeldman$elm_css$Css$justifyContent($rtfeldman$elm_css$Css$center),
 						$rtfeldman$elm_css$Css$flexGrow(
-						$rtfeldman$elm_css$Css$num(1))
+						$rtfeldman$elm_css$Css$num(1)),
+						$rtfeldman$elm_css$Css$overflow($rtfeldman$elm_css$Css$hidden)
 					]),
 				_List_Nil,
 				_List_fromArray(
@@ -11453,7 +12542,7 @@ var $author$project$Main$viewModel = function (m) {
 						_List_Nil,
 						_List_Nil)
 					])),
-				$author$project$Main$viewPlayer(m.currentSong)
+				$author$project$Main$viewPlayer(m.player)
 			]));
 };
 var $author$project$Main$view = function (m) {
@@ -11466,7 +12555,7 @@ var $author$project$Main$view = function (m) {
 		title: 'My Music'
 	};
 };
-var $author$project$Main$main = $elm$browser$Browser$document(
-	{init: $author$project$Main$init, subscriptions: $author$project$Main$subscriptions, update: $author$project$Main$update, view: $author$project$Main$view});
+var $author$project$Main$main = $author$project$UrlPersistence$app(
+	{init: $author$project$Main$init, modelUrl: $author$project$Main$modelUrl, onUrlChange: $author$project$Main$UrlChange, subscriptions: $author$project$Main$subscriptions, update: $author$project$Main$update, view: $author$project$Main$view});
 _Platform_export({'Main':{'init':$author$project$Main$main(
 	$elm$json$Json$Decode$succeed(_Utils_Tuple0))(0)}});}(this));

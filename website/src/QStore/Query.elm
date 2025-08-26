@@ -6,6 +6,7 @@ import Dict exposing (Dict)
 import Http
 import QStore.Core as Core
 import QStore.Core exposing (Id, Value, FileHandle)
+import QStore.Ctx as Ctx exposing (Ctx)
 import Sexpr as S
 import Sexpr exposing (Sexpr)
 
@@ -23,67 +24,12 @@ type QueryError
   | NetworkError Http.Error
   | ShouldBeImpossible
 
-type Var a = Var (Int -> (Int, a))
-
 type QuerySlot t out = QuerySlot (QueryVal t) (QueryVal Value) (Answer -> Result QueryError (Maybe out))
 
-type QueryVar a = QueryVar String (Core.Value -> Maybe a)
-
-type Query a = Query (List QueryQ) (List Answer -> Result QueryError (List a))
-
-valueToString : Value -> Maybe String
-valueToString v =
-  case v of
-    Core.VString s -> Just s
-    _ -> Nothing
-
-valueToId : Value -> Maybe Id
-valueToId v =
-  case v of
-    Core.VId x -> Just x
-    _ -> Nothing
-
-valueToInt : Value -> Maybe Int
-valueToInt v =
-  case v of
-    Core.VInt x -> Just x
-    _ -> Nothing
-
-valueToFileHandle : Value -> Maybe FileHandle
-valueToFileHandle v =
-  case v of
-    Core.VFileHandle h -> Just h
-    _ -> Nothing
-
-stringVar : Var (QueryVar String)
-stringVar = Var (\n -> (n + 1, QueryVar (String.append "x" (String.fromInt n)) valueToString))
-
-intVar : Var (QueryVar Int)
-intVar = Var (\n -> (n + 1, QueryVar (String.append "x" (String.fromInt n)) valueToInt))
-
-idVar : Var (QueryVar Id)
-idVar = Var (\n -> (n + 1, QueryVar (String.append "x" (String.fromInt n)) valueToId))
-
-fileHandleVar : Var (QueryVar FileHandle)
-fileHandleVar = Var (\n -> (n + 1, QueryVar (String.append "x" (String.fromInt n)) valueToFileHandle))
-
-varPure : a -> Var a
-varPure a = Var (\n -> (n, a))
-
-varApp : Var a -> Var (a -> b) -> Var b
-varApp (Var av) (Var fv) =
-  Var (\m ->
-    let
-      (n, f) = fv m
-      (o, a) = av n
-    in (o, f a)
-  )
-
-runVar : Var a -> a
-runVar (Var f) = Tuple.second (f 0)
+type Query a = Query (List QueryQ) (Answer -> Result QueryError (Maybe a))
 
 pure : a -> Query a
-pure a = Query [] (\_ -> Ok [a])
+pure a = Query [] (\_ -> Ok (Just a))
 
 resApp : Result err (a -> b) -> Result err a -> Result err b
 resApp fr ar =
@@ -92,30 +38,35 @@ resApp fr ar =
     (_, Err err) -> Err err
     (Ok f, Ok a) -> Ok (f a)
 
+maybeApp : Maybe (a -> b) -> Maybe a -> Maybe b
+maybeApp mf ma =
+  case (mf, ma) of
+    (Just f, Just a) -> Just (f a)
+    (_, _) -> Nothing
+
 listApp : List (a -> b) -> List a -> List b
 listApp fl al =
-  case (fl, al) of
-    ([], _) -> []
-    (_, []) -> []
-    (f :: nextfl, a :: nextas) -> f a :: listApp nextfl nextas
+  case fl of
+    [] -> []
+    f :: nextfl -> List.append (List.map f al) (listApp nextfl al)
 
 app : Query a -> Query (a -> b) ->  Query b
 app (Query aq aproc) (Query fq fproc) =
   Query
     (List.append fq aq)
-    (\resp -> resApp (Result.map listApp (fproc resp)) (aproc resp))
+    (\resp -> resApp (Result.map maybeApp (fproc resp)) (aproc resp))
 
-query : String -> (Var v, (v -> Query a)) -> Cmd (Result QueryError (List a))
-query url (v, qf) =
+query : String -> (Ctx v, (v -> Query a)) -> Cmd (Result QueryError (List a))
+query url (ctx, qf) =
   let
-    (Query q proc) = qf (runVar v)
+    (Query q proc) = qf (Ctx.run ctx)
   in
     Http.post
       { url = url
       , body = Http.stringBody "application/sexpr" (S.toString (queryToSexpr q))
       , expect = expectResponse (\respRes ->
           case respRes of
-            Ok resp -> proc resp
+            Ok resp -> Result.map (List.filterMap identity) (sequenceResults (List.map proc resp))
             Err err -> Err (NetworkError err)
         )
       }
@@ -144,16 +95,16 @@ query url (v, qf) =
 --         |> Result.map List.concat
 --     )
 
-var : QueryVar a -> QuerySlot a a
-var (QueryVar x proj) =
+var : Ctx.Var a -> QuerySlot a a
+var x =
   QuerySlot
-    (QVar x)
-    (QVar x)
+    (QVar (Ctx.varToString x))
+    (QVar (Ctx.varToString x))
     (\answ ->
-      Dict.get x answ
+      Dict.get (Ctx.varToString x) answ
         |> Maybe.map Ok
-        |> Maybe.withDefault (Err (BadResponse (String.append "No value returned for variable: " x)))
-        |> Result.map proj
+        |> Maybe.withDefault (Err (BadResponse (String.append "No value returned for variable: " (Ctx.varToString x))))
+        |> Result.map (Ctx.matchValue x)
     )
 
 wildcard : QuerySlot v ()
@@ -183,12 +134,27 @@ true q =
       , tx = querySlotToQueryVal q.tx
       }
     ] -- TODO: Handle wildcards better
+    (\answ ->
+      Result.map4
+        (\idM attrM valueM txM ->
+          Maybe.map4 (\x attr value tx -> { id = x, attr = attr, value = value, tx = tx })
+            idM
+            attrM
+            valueM
+            txM
+        )
+        (querySlotProc q.id answ)
+        (querySlotProc q.attr answ)
+        (querySlotProc q.value answ)
+        (querySlotProc q.tx answ)
+    )
+    {-
     (\resp ->
       List.map
         (\answ ->
           Result.map4
             (\idM attrM valueM txM ->
-              Maybe.map4 (\x attr value tx -> [{ id = x, attr = attr, value = value, tx = tx }])
+              Maybe.map4 (\x attr value tx -> [(answ, { id = x, attr = attr, value = value, tx = tx })])
                 idM
                 attrM
                 valueM
@@ -204,6 +170,7 @@ true q =
         |> sequenceResults
         |> Result.map List.concat
     )
+    -}
 
 {-
 type Query a = Query (Int -> { gensym : Int, query : List QueryQ, queryValue : a, responseProc : List Answer -> Result QueryError (List a) })
